@@ -233,8 +233,8 @@
     <section id="reserva" v-show="activePage === 'reserva'" class="home-screen booking-screen page-screen">
       <p class="eyebrow"><span></span> Una conversación antes de la tinta</p>
       <h2>Reserva una<br /><em>consulta.</em></h2>
-      <p class="screen-intro">Comparte tu idea y tus preferencias. La solicitud se guarda en este navegador y no confirma una cita.</p>
-      <p class="screen-notice">Esta web no está conectada a una agenda ni a un servidor. El equipo debe confirmar la disponibilidad por correo.</p>
+      <p class="screen-intro">Comparte tu idea y tus preferencias. Tu solicitud quedará registrada en la cuenta y podrá ser revisada por el estudio.</p>
+      <p v-if="!isAuthenticated" class="screen-notice">Para enviar una solicitud debes iniciar sesión o crear una cuenta. <a href="#acceso">Ir al acceso ↗</a></p>
       <div class="booking-layout">
         <form class="screen-form booking-form" @submit.prevent="submitBooking">
           <label class="screen-field">Tu nombre *<input v-model.trim="booking.name" autocomplete="name" required maxlength="100" /></label>
@@ -249,7 +249,7 @@
           <label class="screen-field screen-field--full">Describe tu idea *<textarea v-model.trim="booking.idea" minlength="10" maxlength="1200" required placeholder="Motivo, referencias o significado que te gustaría explorar..." /><small>{{ booking.idea.length }} / 1200</small></label>
           <p v-if="bookingError" class="screen-error" role="alert">{{ bookingError }}</p>
           <p v-if="bookingMessage" class="screen-notice screen-field--full" role="status">{{ bookingMessage }}</p>
-          <button class="button button--solid screen-field--full" type="submit">Guardar solicitud en este dispositivo <span>↗</span></button>
+          <button class="button button--solid screen-field--full" type="submit" :disabled="isSubmitting">{{ isSubmitting ? 'Enviando…' : 'Enviar solicitud al estudio' }} <span>↗</span></button>
         </form>
         <aside class="booking-summary">
           <p class="eyebrow"><span></span> Resumen</p><h3>Tu consulta<br /><em>empieza aquí.</em></h3>
@@ -284,10 +284,10 @@
     <section id="perfil" v-show="activePage === 'perfil'" class="home-screen profile-screen page-screen">
       <p class="eyebrow"><span></span> Área de clientes · Este navegador</p>
       <h2>Tu espacio<br /><em>Kage.</em></h2>
-      <p class="screen-intro">Tu información, solicitudes guardadas y diseños favoritos en este dispositivo. No hay una cuenta conectada.</p>
+      <p class="screen-intro">{{ isAuthenticated ? 'Tu cuenta y tus solicitudes sincronizadas con el estudio.' : 'Inicia sesión para consultar tus solicitudes y sincronizar tu información.' }}</p>
       <p v-if="profileMessage" class="screen-notice" role="status">{{ profileMessage }}</p>
       <section class="client-profile">
-        <div class="screen-heading"><div><p class="eyebrow"><span></span> Información del usuario</p><h3>{{ profile.name || 'Perfil sin completar' }}</h3></div><button class="button button--outline" type="button" @click="editingProfile = !editingProfile">{{ editingProfile ? 'Cerrar edición' : 'Editar mis datos' }}</button></div>
+        <div class="screen-heading"><div><p class="eyebrow"><span></span> Información del usuario</p><h3>{{ profile.name || 'Perfil sin completar' }}</h3><p v-if="currentUser" class="profile-role">{{ currentUser.role === 'admin' ? 'Administrador' : 'Cliente registrado' }}</p></div><div class="inline-actions"><button v-if="isAuthenticated" class="button button--outline" type="button" @click="editingProfile = !editingProfile">{{ editingProfile ? 'Cerrar edición' : 'Editar mis datos' }}</button><button v-if="isAuthenticated" class="button button--outline" type="button" @click="logout">Cerrar sesión</button><a v-else class="button button--solid" href="#acceso">Iniciar sesión</a></div></div>
         <form v-if="editingProfile" class="profile-edit" @submit.prevent="saveClientProfile">
           <label class="screen-field">Nombre<input v-model.trim="profileDraft.name" autocomplete="name" required maxlength="100" /></label>
           <label class="screen-field">Correo electrónico<input v-model.trim="profileDraft.email" type="email" autocomplete="email" required maxlength="254" /></label>
@@ -331,13 +331,15 @@
 
     <section id="acceso" v-show="activePage === 'acceso'" class="home-screen access-screen page-screen">
       <div class="access-panel">
-        <div><p class="eyebrow"><span></span> Área de clientes</p><h2>Tu espacio<br /><em>personal.</em></h2><p>Este acceso aún no está conectado a un servicio de cuentas. No uses una contraseña real.</p></div>
+        <div><p class="eyebrow"><span></span> Área de clientes</p><h2>Tu espacio<br /><em>personal.</em></h2><p>{{ isRegister ? 'Crea tu cuenta para enviar y consultar solicitudes.' : 'Accede a tu cuenta para gestionar tus solicitudes y datos.' }}</p></div>
         <form class="screen-form" @submit.prevent="submitLogin">
-          <label class="screen-field">Correo electrónico<input v-model.trim="loginEmail" type="email" required autocomplete="email" maxlength="254" /></label>
-          <label class="screen-field">Contraseña<input v-model="loginPassword" type="password" required autocomplete="current-password" maxlength="128" /></label>
+          <label v-if="isRegister" class="screen-field">Nombre completo<input v-model.trim="registerName" autocomplete="name" required maxlength="120" /></label>
+          <label class="screen-field">Correo electrónico<input v-model.trim="loginEmail" type="email" required autocomplete="email" maxlength="190" /></label>
+          <label class="screen-field">Contraseña<input v-model="loginPassword" type="password" required :autocomplete="isRegister ? 'new-password' : 'current-password'" minlength="6" maxlength="72" /></label>
           <p v-if="loginMessage" class="screen-notice" role="status">{{ loginMessage }}</p>
-          <button class="button button--solid" type="submit">Continuar <span>↗</span></button>
-          <a class="text-link" href="#perfil">Ver perfil local <span>↗</span></a>
+          <button class="button button--solid" type="submit" :disabled="isSubmitting">{{ isSubmitting ? 'Procesando…' : (isRegister ? 'Crear cuenta' : 'Iniciar sesión') }} <span>↗</span></button>
+          <button class="text-link" type="button" @click="isRegister = !isRegister; loginMessage = ''">{{ isRegister ? 'Ya tengo una cuenta · Iniciar sesión' : '¿No tienes cuenta? Crear una' }}</button>
+          <a class="text-link" href="#perfil">Ir a mi perfil <span>↗</span></a>
         </form>
       </div>
     </section>
@@ -367,6 +369,7 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import heroImage from '~/assets/ChatGPT Image 10 sept 2026, 15_29_35.png'
 import { artistProfiles, categories, designs, type TattooDesign } from '~/data/studio'
+import { AUTH_TOKEN_KEY, type ApiBooking, type ApiUser, normalizeApiError } from '~/utils/api-client'
 import {
   BOOKINGS_KEY,
   formatBookingDate,
@@ -461,6 +464,15 @@ const pendingCancellation = ref<string | null>(null)
 const minDate = ref('')
 const loginEmail = ref('')
 const loginPassword = ref('')
+const registerName = ref('')
+const isRegister = ref(false)
+const isSubmitting = ref(false)
+const authToken = ref('')
+const currentUser = ref<ApiUser | null>(null)
+const isAuthenticated = computed(() => Boolean(authToken.value && currentUser.value))
+const isAdmin = computed(() => currentUser.value?.role === 'admin')
+const runtimeConfig = useRuntimeConfig()
+const apiBase = String(runtimeConfig.public.apiBase).replace(/\\/$/, '')
 const timeSlots = ['10:00', '12:00', '15:00', '17:00']
 const bodyAreas = ['Brazo', 'Espalda', 'Pierna', 'Hombro', 'Pecho', 'Costillas', 'Otra zona']
 const sizes = ['Pequeño · hasta 8 cm', 'Mediano · 8–18 cm', 'Grande · más de 18 cm', 'Por definir en consulta']
@@ -500,6 +512,7 @@ onMounted(() => {
   const today = new Date()
   minDate.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   loadLocalData()
+  void loadAccountData()
   window.addEventListener('hashchange', handleHashChange)
   window.addEventListener('keydown', handlePageKeydown)
   document.addEventListener('click', handlePageLinkClick)
@@ -514,13 +527,56 @@ onUnmounted(() => {
 function loadLocalData() {
   try {
     favorites.value = readFavorites()
-    bookings.value = readBookings()
     profile.value = readProfile()
     profileDraft.name = profile.value.name
     profileDraft.email = profile.value.email
+    authToken.value = localStorage.getItem(AUTH_TOKEN_KEY) || ''
   } catch (error) {
     storageMessage.value = error instanceof Error ? error.message : 'No se pudieron cargar los datos guardados en este navegador.'
     profileMessage.value = storageMessage.value
+  }
+}
+
+async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const headers = new Headers(options.headers || {})
+  if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
+  if (authToken.value) headers.set('Authorization', `Bearer ${authToken.value}`)
+  const response = await fetch(`${apiBase}${path}`, { ...options, headers })
+  const payload = await response.json().catch(() => null)
+  if (!response.ok) throw new Error(normalizeApiError(payload, `La solicitud falló (HTTP ${response.status}).`))
+  return payload as T
+}
+
+function mapApiBooking(item: ApiBooking): BookingRequest {
+  return {
+    id: String(item.id), artist: item.artist, date: String(item.date).slice(0, 10), time: String(item.time).slice(0, 5),
+    bodyArea: item.bodyArea, size: item.size, idea: item.idea,
+    name: item.user?.fullName || profile.value.name, email: item.user?.email || profile.value.email,
+    status: item.status === 'confirmed' ? 'Solicitud confirmada' : item.status === 'cancelled' ? 'Solicitud cancelada' : 'Solicitud pendiente',
+    createdAt: item.createdAt,
+  }
+}
+
+async function loadAccountData() {
+  if (!authToken.value) {
+    bookings.value = readBookings()
+    return
+  }
+  try {
+    const response = await apiRequest<{ user: ApiUser }>('/auth/profile')
+    currentUser.value = response.user
+    profile.value = { name: response.user.fullName, email: response.user.email }
+    profileDraft.name = profile.value.name
+    profileDraft.email = profile.value.email
+    const remoteBookings = await apiRequest<ApiBooking[]>('/bookings/mine')
+    bookings.value = remoteBookings.map(mapApiBooking)
+    profileMessage.value = ''
+  } catch (error) {
+    authToken.value = ''
+    currentUser.value = null
+    localStorage.removeItem(AUTH_TOKEN_KEY)
+    bookings.value = readBookings()
+    profileMessage.value = error instanceof Error ? `No se pudo sincronizar tu cuenta: ${error.message}` : 'No se pudo sincronizar tu cuenta.'
   }
 }
 
@@ -600,55 +656,49 @@ function toggleFavorite(slug: string) {
   }
 }
 
-function submitBooking() {
+async function submitBooking() {
   bookingError.value = ''
   bookingMessage.value = ''
-  if (!booking.name || !booking.email || !booking.artist || !booking.date || !booking.time || !booking.bodyArea || !booking.size || booking.idea.length < 10) {
-    bookingError.value = 'Completa todos los campos obligatorios. La idea debe tener al menos 10 caracteres.'
-    return
+  if (!isAuthenticated.value) { bookingError.value = 'Inicia sesión o crea una cuenta antes de enviar tu solicitud.'; navigateToPage('acceso'); return }
+  if (!booking.artist || !booking.date || !booking.time || !booking.bodyArea || !booking.size || booking.idea.length < 10) {
+    bookingError.value = 'Completa todos los campos obligatorios. La idea debe tener al menos 10 caracteres.'; return
   }
-  if (booking.date < minDate.value) {
-    bookingError.value = 'Elige una fecha de hoy o posterior.'
-    return
-  }
-  const request: BookingRequest = {
-    ...booking,
-    id: globalThis.crypto.randomUUID(),
-    status: 'Solicitud pendiente',
-    createdAt: new Date().toISOString(),
-  }
+  if (booking.date < minDate.value) { bookingError.value = 'Elige una fecha de hoy o posterior.'; return }
+  isSubmitting.value = true
   try {
-    saveBooking(request)
-    bookings.value = readBookings()
-    bookingMessage.value = 'Solicitud guardada en este navegador. No se ha enviado ni confirmado; contacta con el estudio para verificar disponibilidad.'
+    await apiRequest<ApiBooking>('/bookings', { method: 'POST', body: JSON.stringify({ artist: booking.artist, date: booking.date, time: booking.time, bodyArea: booking.bodyArea, size: booking.size, idea: booking.idea }) })
+    const remoteBookings = await apiRequest<ApiBooking[]>('/bookings/mine')
+    bookings.value = remoteBookings.map(mapApiBooking)
+    bookingMessage.value = '¡Solicitud enviada! El estudio la recibió y revisará la disponibilidad. La cita aún no está confirmada.'
+    booking.idea = ''
+    navigateToPage('perfil')
   } catch (error) {
-    bookingError.value = error instanceof Error ? `No se pudo guardar la solicitud: ${error.message}` : 'No se pudo guardar la solicitud en este dispositivo.'
-  }
+    bookingError.value = error instanceof Error ? `No se pudo enviar la solicitud: ${error.message}` : 'No se pudo enviar la solicitud.'
+  } finally { isSubmitting.value = false }
 }
 
-function saveClientProfile() {
+async function saveClientProfile() {
+  if (!isAuthenticated.value) { profileMessage.value = 'Inicia sesión para actualizar tu perfil.'; return }
   try {
-    saveProfile(profileDraft)
-    profile.value = { ...profileDraft }
+    const response = await apiRequest<{ user: ApiUser }>('/auth/profile', { method: 'PATCH', body: JSON.stringify({ fullName: profileDraft.name, email: profileDraft.email }) })
+    currentUser.value = response.user
+    profile.value = { name: response.user.fullName, email: response.user.email }
+    profileDraft.name = profile.value.name; profileDraft.email = profile.value.email
     editingProfile.value = false
-    profileMessage.value = 'Tus datos se guardaron solo en este navegador.'
-  } catch (error) {
-    profileMessage.value = error instanceof Error ? `No se pudo guardar el perfil: ${error.message}` : 'No se pudo guardar el perfil.'
-  }
+    profileMessage.value = 'Tus datos se actualizaron en tu cuenta.'
+  } catch (error) { profileMessage.value = error instanceof Error ? `No se pudo actualizar el perfil: ${error.message}` : 'No se pudo actualizar el perfil.' }
 }
 
-function cancelBooking(id: string) {
+async function cancelBooking(id: string) {
   const request = bookings.value.find((item) => item.id === id)
-  if (!request || request.status !== 'Solicitud pendiente') return
-  const updatedBookings = bookings.value.map((item) => item.id === id ? { ...item, status: 'Solicitud cancelada' as const } : item)
+  if (!request || request.status !== 'Solicitud pendiente' || !isAuthenticated.value) return
   try {
-    localStorage.setItem(BOOKINGS_KEY, JSON.stringify(updatedBookings))
-    bookings.value = updatedBookings
+    await apiRequest<ApiBooking>(`/bookings/${encodeURIComponent(id)}/cancel`, { method: 'PATCH' })
+    const remoteBookings = await apiRequest<ApiBooking[]>('/bookings/mine')
+    bookings.value = remoteBookings.map(mapApiBooking)
     pendingCancellation.value = null
-    profileMessage.value = 'Solicitud marcada como cancelada en este navegador. Si ya escribiste al estudio, avísales directamente.'
-  } catch (error) {
-    profileMessage.value = error instanceof Error ? `No se pudo cancelar la solicitud local: ${error.message}` : 'No se pudo actualizar la solicitud.'
-  }
+    profileMessage.value = 'La solicitud fue cancelada en el sistema del estudio.'
+  } catch (error) { profileMessage.value = error instanceof Error ? `No se pudo cancelar: ${error.message}` : 'No se pudo cancelar la solicitud.' }
 }
 
 function displayDate(value: string) {
@@ -666,9 +716,37 @@ function sendContact() {
   window.location.href = `mailto:hola@kagetattoo.es?subject=${subject}&body=${body}`
 }
 
-function submitLogin() {
-  loginMessage.value = 'El acceso no está conectado a un sistema de cuentas. Tus datos no se enviaron ni se guardaron.'
-  loginPassword.value = ''
+async function submitLogin() {
+  loginMessage.value = ''
+  isSubmitting.value = true
+  try {
+    const path = isRegister.value ? '/auth/register' : '/auth/login'
+    const body = isRegister.value
+      ? { fullName: registerName.value.trim(), email: loginEmail.value.trim(), password: loginPassword.value }
+      : { email: loginEmail.value.trim(), password: loginPassword.value }
+    const response = await apiRequest<{ token: string; user: ApiUser }>(path, { method: 'POST', body: JSON.stringify(body) })
+    authToken.value = response.token
+    currentUser.value = response.user
+    localStorage.setItem(AUTH_TOKEN_KEY, response.token)
+    profile.value = { name: response.user.fullName, email: response.user.email }
+    profileDraft.name = profile.value.name; profileDraft.email = profile.value.email
+    loginPassword.value = ''
+    isRegister.value = false
+    loginMessage.value = 'Acceso correcto. Tu cuenta está conectada.'
+    await loadAccountData()
+    navigateToPage('perfil')
+  } catch (error) {
+    loginMessage.value = error instanceof Error ? error.message : 'No se pudo iniciar sesión.'
+  } finally { isSubmitting.value = false }
+}
+
+function logout() {
+  authToken.value = ''
+  currentUser.value = null
+  localStorage.removeItem(AUTH_TOKEN_KEY)
+  bookings.value = readBookings()
+  profileMessage.value = 'Has cerrado sesión.'
+  navigateToPage('acceso')
 }
 </script>
 
