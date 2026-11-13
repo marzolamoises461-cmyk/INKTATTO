@@ -449,9 +449,7 @@ const studioStyles = [
   },
 ]
 const pageIds = ['inicio', 'estudio', 'especialidades', 'frase', 'proceso', 'galeria', 'reserva', 'equipo', 'perfil', 'contacto', 'acceso']
-const pageCount = pageIds.length
 const activePage = ref('inicio')
-const activePageIndex = computed(() => pageIds.indexOf(activePage.value))
 const selectedCategory = ref('Todos')
 const selectedDesign = ref<TattooDesign | null>(null)
 const selectedArtist = ref<(typeof artistProfiles)[number] | null>(null)
@@ -530,13 +528,11 @@ onMounted(() => {
   loadLocalData()
   void loadAccountData()
   window.addEventListener('hashchange', handleHashChange)
-  window.addEventListener('keydown', handlePageKeydown)
   document.addEventListener('click', handlePageLinkClick)
   setPageFromHash()
 })
 onUnmounted(() => {
   window.removeEventListener('hashchange', handleHashChange)
-  window.removeEventListener('keydown', handlePageKeydown)
   document.removeEventListener('click', handlePageLinkClick)
 })
 
@@ -649,17 +645,6 @@ function handlePageLinkClick(event: MouseEvent) {
   menuOpen.value = false
   if (hash !== 'detalle' && hash !== 'galeria') selectedDesign.value = null
   navigateToPage(hash)
-}
-
-function turnPage(direction: number) {
-  const nextIndex = Math.min(pageCount - 1, Math.max(0, activePageIndex.value + direction))
-  navigateToPage(pageIds[nextIndex]!)
-}
-
-function handlePageKeydown(event: KeyboardEvent) {
-  if (event.altKey || event.ctrlKey || event.metaKey || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement) return
-  if (event.key === 'ArrowRight' || event.key === 'PageDown') turnPage(1)
-  if (event.key === 'ArrowLeft' || event.key === 'PageUp') turnPage(-1)
 }
 
 function toggleFavorite(slug: string) {
@@ -1025,12 +1010,6 @@ h1 em, h2 em, blockquote em { color: var(--red); font-style: italic; }
 .access-panel > div > p:last-child { max-width: 400px; color: #a3a5a1; font-size: 12px; line-height: 1.8; }
 .access-panel form { align-content: center; }
 .mobile-nav-toggle { display: none; }
-.book-controls { position: absolute; z-index: 25; right: 5.5vw; bottom: 18px; left: 5.5vw; display: flex; align-items: center; justify-content: space-between; pointer-events: none; }
-.book-controls button { display: inline-flex; align-items: center; gap: 12px; min-height: 42px; padding: 0 15px; border: 1px solid rgba(233,230,223,.35); background: rgba(8,9,10,.92); color: var(--paper); cursor: pointer; font: 10px 'DM Mono', monospace; letter-spacing: .1em; text-transform: uppercase; pointer-events: auto; transition: border-color .2s ease, color .2s ease; }
-.book-controls button:hover:not(:disabled) { border-color: var(--red); color: #fff; }
-.book-controls button:disabled { opacity: .35; cursor: default; }
-.book-controls__count { position: absolute; left: 50%; color: var(--paper); font: 10px 'DM Mono', monospace; letter-spacing: .12em; transform: translateX(-50%); }
-.book-controls__count i { margin: 0 7px; color: var(--red); font-style: normal; }
 .site-footer { position: absolute; right: 0; bottom: 76px; left: 0; z-index: 2; }
 @media (max-width: 900px) {
   .home-design-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1092,8 +1071,6 @@ h1 em, h2 em, blockquote em { color: var(--red); font-style: italic; }
   .feature-section .feature-content { min-height: 55vh; padding: 50px 22px; }
   .quote-section.page-screen { padding: 110px 22px 100px; }
   .quote-mark { top: 125px; left: 22px; }
-  .book-controls { right: 14px; bottom: 12px; left: 14px; }
-  .book-controls button { min-height: 38px; padding: 0 10px; font-size: 8px; }
   .site-footer { bottom: 62px; padding: 15px 22px; }
 }
 @media (max-width: 430px) {
