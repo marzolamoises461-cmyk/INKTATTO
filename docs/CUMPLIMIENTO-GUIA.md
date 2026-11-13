@@ -3,32 +3,34 @@
 La guía tiene siete apartados y está centrada en NestJS, MySQL, usuarios, JWT,
 DTOs, validación, serialización, roles y pruebas.
 
-| Apartado | Archivos / implementación |
+| Apartado | Implementación |
 |---|---|
-| 1. Configuración NestJS | `backend/package.json`, `nest-cli.json`, `tsconfig.json`, `src/main.ts` |
-| 2. MySQL y configuración | `backend/.env.example`, `backend/database/001-create-users.sql`, `src/app.module.ts` |
-| 3. Módulo User | Entidad, DTOs, servicio, controlador y módulo en `backend/src/user/` |
-| 4. Módulo Auth | Registro, login, JWT, Passport, estrategia, decorador GetUser y AuthController en `backend/src/auth/` |
-| 5. DTOs, validación y serialización | DTOs con class-validator; ValidationPipe global estricto; ClassSerializerInterceptor; `@Exclude()` y `select: false` para password |
-| 6. Roles y protección | `JwtAuthGuard`, `RolesGuard`, `@Roles()`, CRUD de usuarios solo admin y rutas demostrativas `/api/example/*` |
-| 7. Pruebas y ejemplos | `user.service.spec.ts`, `test/auth.e2e-spec.ts` y `docs/PRUEBAS-API.md` |
+| 1. Configuración NestJS | `backend/package.json`, `nest-cli.json`, `tsconfig.json`, `tsconfig.build.json`, `src/main.ts` |
+| 2. MySQL | Docker Compose, variables `.env`, DataSource TypeORM, migraciones versionadas y `synchronize: false` |
+| 3. Módulo User | Entidad, DTOs, servicio, controlador, CRUD protegido y módulo |
+| 4. Módulo Auth | Registro, login, JWT, Passport, bcrypt, estrategia, perfil y AuthController |
+| 5. DTOs, validación y serialización | DTOs con class-validator; ValidationPipe global estricto; ClassSerializerInterceptor; `@Exclude()` y `select: false` |
+| 6. Roles y protección | JwtAuthGuard, RolesGuard, `@Roles()`; CRUD de usuarios y gestión de citas exclusiva para admin |
+| 7. Pruebas y ejemplos | Pruebas unitarias/e2e, workflow CI con MySQL, documentación y ejemplos cURL |
+
+## Persistencia de INKTATTO
+
+Además de la guía académica, se conectaron las solicitudes de citas a MySQL:
+- Clientes autenticados pueden crear y consultar sus propias solicitudes.
+- El cliente solo puede cancelar sus solicitudes que sigan pendientes.
+- El administrador puede consultar todas las solicitudes y cambiar su estado a pendiente, confirmada o cancelada.
+- Las tablas `users` y `bookings` se crean mediante migraciones TypeORM.
 
 ## Reglas de seguridad
 
-- El registro público no acepta rol ni estado: crea siempre usuarios activos con rol
-  `user`.
-- Las contraseñas se guardan con bcrypt y no se exponen en las respuestas.
+- El registro público siempre crea usuarios activos con rol `user`; no acepta rol ni estado.
+- Las contraseñas se guardan con bcrypt y no se exponen en respuestas.
 - El JWT no contiene contraseña ni otros secretos.
-- La estrategia vuelve a consultar al usuario en MySQL, por lo que una cuenta
-  desactivada deja de poder usar el token.
-- El CRUD de usuarios exige JWT válido y rol `admin`.
-- Los guards se ejecutan en orden: primero JWT y después rol.
-- En producción `synchronize` está desactivado; se debe aplicar el SQL versionado.
+- La estrategia consulta de nuevo el usuario en MySQL; una cuenta desactivada deja de poder usar el token.
+- El CRUD de usuarios y las operaciones administrativas de citas exigen JWT válido y rol `admin`.
+- En todos los entornos `synchronize` está desactivado; el esquema se cambia con migraciones.
+- El primer administrador se crea mediante el comando local `npm run admin:create`, nunca mediante un endpoint público.
 
-## Estado de verificación
+## Verificación pendiente
 
-La estructura y los archivos de implementación están en el repositorio. No se
-declara compilación ni pruebas aprobadas todavía: deben ejecutarse con Node.js,
-dependencias instaladas y MySQL disponible. La integración de las pantallas de
-reservas y perfil del frontend con persistencia de la API es una fase adicional
-y no se considera terminada por la sola existencia del backend.
+Los cambios ya están en la rama `feature/guia-instructor-completa`. El workflow de GitHub Actions debe ejecutar compilación, pruebas y migración MySQL; el equipo local debe arrancar Docker/MySQL y validar el recorrido visual en el navegador. No se declara todavía una compilación o una conexión real aprobada hasta ver esos resultados.

@@ -1,22 +1,45 @@
 # Protocolo de pruebas API
 
-## Preparación
+## Preparación local
 
-1. Instala Node.js 20+ y MySQL 8+.
-2. Crea la base con el script `backend/database/001-create-users.sql`.
-3. Copia `backend/.env.example` como `backend/.env` y completa las credenciales.
-4. Desde `backend/`, ejecuta `npm install` y `npm run start:dev`.
+Desde la raíz del repositorio, copia `.env.example` a `.env` y ejecuta:
 
-La API usa el prefijo `/api` y el puerto 3001 por defecto.
+```powershell
+docker compose up -d mysql
+Copy-Item backend/.env.example backend/.env
+```
 
-## Pruebas automatizadas
+Comprueba que los valores DB de `backend/.env` coincidan con los de la raíz. Después:
+
+```powershell
+cd backend
+npm install
+npm run start:dev
+```
+
+La API usa `http://localhost:3001/api`. Al arrancar, TypeORM aplica las migraciones pendientes.
+
+## Crear administrador
+
+En otra terminal PowerShell, desde `backend/`, define temporalmente estas variables y ejecuta el comando. Usa una contraseña única de al menos 12 caracteres:
+
+```powershell
+$env:ADMIN_EMAIL = "tu-correo@ejemplo.com"
+$env:ADMIN_FULL_NAME = "Administrador INKTATTO"
+$env:ADMIN_PASSWORD = "una-clave-larga-y-unica"
+npm run admin:create
+Remove-Item Env:ADMIN_EMAIL, Env:ADMIN_FULL_NAME, Env:ADMIN_PASSWORD
+```
+
+## Pruebas automáticas
 
 Desde `backend/`:
 
-```bash
-npm test
-npm run test:e2e
+```powershell
 npm run build
+npm test -- --runInBand
+npm run test:e2e -- --runInBand
+npm run migration:show
 ```
 
 ## Rutas
@@ -30,54 +53,39 @@ npm run build
 | GET | `/api/example/admin` | JWT + admin |
 | POST/GET | `/api/users` | JWT + admin |
 | GET/PATCH/DELETE | `/api/users/:id` | JWT + admin |
+| POST | `/api/bookings` | JWT; crea solicitud del usuario autenticado |
+| GET | `/api/bookings/mine` | JWT; solo solicitudes propias |
+| PATCH | `/api/bookings/:id/cancel` | JWT; propietario y solo pendiente |
+| GET | `/api/bookings` | JWT + admin |
+| PATCH | `/api/bookings/:id/status` | JWT + admin |
 
 ## Ejemplos cURL
 
-### Registro
-
+Registro:
 ```bash
 curl -i -X POST http://localhost:3001/api/auth/register -H "Content-Type: application/json" -d '{"email":"cliente@ejemplo.com","password":"clave123","fullName":"Cliente de Prueba"}'
 ```
 
-Esperado: 201, token Bearer y usuario público sin password.
-
-### Login
-
+Login:
 ```bash
 curl -i -X POST http://localhost:3001/api/auth/login -H "Content-Type: application/json" -d '{"email":"cliente@ejemplo.com","password":"clave123"}'
 ```
 
-Credenciales incorrectas: 401.
-
-### Perfil y rutas protegidas
-
+Perfil protegido:
 ```bash
 curl -i http://localhost:3001/api/auth/profile -H "Authorization: Bearer TOKEN"
-curl -i http://localhost:3001/api/example/protected -H "Authorization: Bearer TOKEN"
-curl -i http://localhost:3001/api/example/admin -H "Authorization: Bearer TOKEN"
 ```
 
-Sin token o token inválido: 401. Usuario normal en ruta admin: 403.
-
-### Primer administrador
-
-Después de registrar la cuenta propietaria, ejecuta desde una sesión MySQL
-administrativa y cambia el correo por el de esa cuenta:
-
-```sql
-UPDATE users SET role = 'admin' WHERE email = 'propietario@ejemplo.com';
+Crear cita:
+```bash
+curl -i -X POST http://localhost:3001/api/bookings -H "Authorization: Bearer TOKEN" -H "Content-Type: application/json" -d '{"artist":"artist-slug","date":"2027-01-15","time":"10:00","bodyArea":"Brazo","size":"Mediano","idea":"Diseño de referencia para una consulta de tatuaje"}'
 ```
-
-Cierra sesión e inicia sesión nuevamente para obtener un JWT con el rol actualizado.
-Nunca crees un endpoint público que permita elevar privilegios.
 
 ## Códigos esperados
 
 - 400: DTO inválido, propiedades adicionales o id no numérico.
 - 401: sin JWT, JWT inválido/expirado o credenciales incorrectas.
-- 403: JWT válido sin rol suficiente.
-- 404: usuario inexistente.
+- 403: JWT válido sin rol suficiente, o usuario que intenta cancelar una solicitud ajena.
+- 404: usuario o solicitud inexistente.
 - 409: correo duplicado.
-- 204: eliminación exitosa.
-
-Usa datos ficticios y una base de pruebas. No compartas tokens ni archivos `.env`.
+- 204: eliminación exitosa de usuario.

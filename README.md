@@ -1,38 +1,45 @@
 # INKTATTO — estudio de tatuajes
 
-Aplicación web construida con Nuxt/Vue y una API backend NestJS + MySQL.
+Aplicación web Nuxt/Vue conectada a una API NestJS con MySQL.
 
-## Carpetas
-
-- `app/`: interfaz web original del estudio (inicio, galería, artistas, reservas, contacto, login y perfil).
-- `backend/`: API REST que implementa la guía del instructor: MySQL/TypeORM, usuarios, autenticación JWT, bcrypt, DTOs, validación, serialización, roles y pruebas.
-- `docs/`: matriz de cumplimiento y protocolo de pruebas de la API.
+## Estructura
+- `app/`: inicio, galería, artistas, reservas, login y perfil.
+- `backend/`: API NestJS, TypeORM, MySQL, autenticación JWT, roles y solicitudes de citas persistentes.
+- `docs/`: cumplimiento de la guía y protocolo de pruebas.
 
 ## Requisitos
+Node.js 20+, npm y Docker Desktop con Docker Compose (recomendado).
 
-Node.js 20+, npm y MySQL 8+.
+## Iniciar MySQL y la API en Windows
 
-## Ejecutar frontend
+Desde la raíz del proyecto:
 
-```bash
-npm install
-npm run dev
-```
-
-## Ejecutar backend
-
-1. Crear base de datos: `CREATE DATABASE inktatto_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`
-2. Copiar `backend/.env.example` a `backend/.env` y configurar las credenciales reales de MySQL y un secreto JWT aleatorio.
-3. Ejecutar:
-
-```bash
+```powershell
+Copy-Item .env.example .env
+docker compose up -d mysql
+Copy-Item backend/.env.example backend/.env
 cd backend
 npm install
 npm run start:dev
 ```
 
-La API queda disponible en `http://localhost:3001/api`. No subir archivos `.env` ni compartir tokens.
+MySQL queda en `127.0.0.1:3306` y la API en `http://localhost:3001/api`. Las migraciones se ejecutan automáticamente al iniciar la API. Los valores del archivo de ejemplo son solo para desarrollo local.
 
-## Cumplimiento de la guía
+## Crear administrador inicial
 
-Consultar `docs/CUMPLIMIENTO-GUIA.md` y ejecutar el protocolo de `docs/PRUEBAS-API.md`. La integración del frontend con la API para convertir las reservas y los perfiles locales en registros persistentes es una etapa posterior; no se presenta como terminada en esta entrega.
+Desde `backend/`, define temporalmente `ADMIN_EMAIL`, `ADMIN_FULL_NAME` y `ADMIN_PASSWORD` en PowerShell y ejecuta `npm run admin:create`. La contraseña debe tener 12–72 caracteres. El comando guarda el hash con bcrypt y asigna el rol admin; no existe una ruta pública para elevar privilegios.
+
+## Iniciar frontend
+
+En otra terminal, desde la raíz:
+
+```powershell
+npm install
+npm run dev
+```
+
+El frontend usa `NUXT_PUBLIC_API_BASE`; por defecto apunta a `http://localhost:3001/api`. El registro y login usan JWT; las solicitudes de citas y el perfil se sincronizan con MySQL. Los diseños favoritos permanecen guardados localmente en el navegador.
+
+## Validación
+
+Consulta `docs/CUMPLIMIENTO-GUIA.md` y sigue `docs/PRUEBAS-API.md`. GitHub Actions ejecuta build, pruebas y migraciones MySQL para los cambios de backend.
