@@ -84,7 +84,7 @@
 
           <p v-if="formError" class="booking-error" role="alert">{{ formError }}</p>
           <p v-if="confirmation" class="studio-notice" role="status">{{ confirmation }}</p>
-          <button class="studio-button booking-submit" type="submit">Enviar solicitud al estudio <span>↗</span></button>
+          <button class="studio-button booking-submit" type="submit" :disabled="submitting">{{ submitting ? 'Enviando…' : 'Enviar solicitud al estudio' }} <span>↗</span></button>
         </form>
 
         <aside class="booking-summary studio-card">

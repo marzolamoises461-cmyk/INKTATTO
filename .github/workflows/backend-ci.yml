@@ -56,3 +56,17 @@ jobs:
           JWT_SECRET: test_only_secret_key_that_is_long_enough_123456
           JWT_EXPIRATION: 3600
         run: npm run test:e2e -- --runInBand
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Build Nuxt frontend
+        run: npm run build
