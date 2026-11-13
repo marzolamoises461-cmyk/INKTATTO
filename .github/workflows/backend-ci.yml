@@ -62,6 +62,7 @@ jobs:
           DB_DATABASE: inktatto_test
           JWT_SECRET: test_only_secret_key_that_is_long_enough_123456
           JWT_EXPIRATION: 3600
+          RUN_DB_E2E: 'true'
         run: npm run test:e2e -- --runInBand
 
   frontend:
