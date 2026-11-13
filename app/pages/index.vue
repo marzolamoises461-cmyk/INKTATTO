@@ -674,7 +674,7 @@ function toggleFavorite(slug: string) {
   }
 }
 
-async async function submitBooking() {
+async function submitBooking() {
   bookingError.value = ''
   bookingMessage.value = ''
   if (!isAuthenticated.value) { bookingError.value = 'Inicia sesión o crea una cuenta antes de enviar tu solicitud.'; navigateToPage('acceso'); return }
