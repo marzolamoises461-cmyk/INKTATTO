@@ -6,6 +6,7 @@ import { UserService } from '../user/user.service';
 import { User } from '../user/entities/user.entity';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { AuthResponse } from './interfaces/auth-response.interface';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 
@@ -20,6 +21,10 @@ export class AuthService {
   async register(dto: RegisterDto): Promise<AuthResponse> {
     const user = await this.users.create(dto);
     return this.buildAuthResponse(user);
+  }
+
+  async updateProfile(userId: number, dto: UpdateProfileDto): Promise<User> {
+    return this.users.update(userId, { fullName: dto.fullName, email: dto.email });
   }
 
   async login(dto: LoginDto): Promise<AuthResponse> {
