@@ -23,6 +23,7 @@ import { validateEnvironment } from './config/env.validation';
         username: config.getOrThrow<string>('DB_USERNAME'),
         password: config.getOrThrow<string>('DB_PASSWORD'),
         database: config.getOrThrow<string>('DB_DATABASE'),
+        ssl: config.get<string>('DB_SSL') === 'true' ? {} : undefined,
         autoLoadEntities: true,
         synchronize: false,
         migrations: [__dirname + '/database/migrations/*{.ts,.js}'],
