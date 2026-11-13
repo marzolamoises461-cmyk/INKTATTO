@@ -469,7 +469,7 @@ const currentUser = ref<ApiUser | null>(null)
 const isAuthenticated = computed(() => Boolean(authToken.value && currentUser.value))
 const isAdmin = computed(() => currentUser.value?.role === 'admin')
 const runtimeConfig = useRuntimeConfig()
-const apiBase = String(runtimeConfig.public.apiBase).replace(/\\/$/, '')
+const apiBase = String(runtimeConfig.public.apiBase).replace(/\/$/, '')
 const timeSlots = ['10:00', '12:00', '15:00', '17:00']
 const bodyAreas = ['Brazo', 'Espalda', 'Pierna', 'Hombro', 'Pecho', 'Costillas', 'Otra zona']
 const sizes = ['Pequeño · hasta 8 cm', 'Mediano · 8–18 cm', 'Grande · más de 18 cm', 'Por definir en consulta']
@@ -654,7 +654,7 @@ function toggleFavorite(slug: string) {
   }
 }
 
-async function submitBooking() {
+async async function submitBooking() {
   bookingError.value = ''
   bookingMessage.value = ''
   if (!isAuthenticated.value) { bookingError.value = 'Inicia sesión o crea una cuenta antes de enviar tu solicitud.'; navigateToPage('acceso'); return }
