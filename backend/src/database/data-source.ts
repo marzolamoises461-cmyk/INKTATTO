@@ -21,6 +21,7 @@ export default new DataSource({
   username: requiredEnv('DB_USERNAME'),
   password: requiredEnv('DB_PASSWORD'),
   database: requiredEnv('DB_DATABASE'),
+  ssl: process.env.DB_SSL === 'true' ? {} : undefined,
   entities: [__dirname + '/../**/*.entity{.ts,.js}'],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   migrationsTableName: 'typeorm_migrations',
