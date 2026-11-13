@@ -371,14 +371,11 @@ import heroImage from '~/assets/ChatGPT Image 10 sept 2026, 15_29_35.png'
 import { artistProfiles, categories, designs, type TattooDesign } from '~/data/studio'
 import { AUTH_TOKEN_KEY, type ApiBooking, type ApiUser, normalizeApiError } from '~/utils/api-client'
 import {
-  BOOKINGS_KEY,
   formatBookingDate,
   readBookings,
   readFavorites,
   readProfile,
-  saveBooking,
   saveFavorites,
-  saveProfile,
   type BookingRequest,
   type ClientProfile,
 } from '~/utils/studio-storage'
@@ -566,6 +563,7 @@ async function loadAccountData() {
     const response = await apiRequest<{ user: ApiUser }>('/auth/profile')
     currentUser.value = response.user
     profile.value = { name: response.user.fullName, email: response.user.email }
+    booking.name = profile.value.name; booking.email = profile.value.email
     profileDraft.name = profile.value.name
     profileDraft.email = profile.value.email
     const remoteBookings = await apiRequest<ApiBooking[]>('/bookings/mine')
@@ -683,6 +681,7 @@ async function saveClientProfile() {
     const response = await apiRequest<{ user: ApiUser }>('/auth/profile', { method: 'PATCH', body: JSON.stringify({ fullName: profileDraft.name, email: profileDraft.email }) })
     currentUser.value = response.user
     profile.value = { name: response.user.fullName, email: response.user.email }
+    booking.name = profile.value.name; booking.email = profile.value.email
     profileDraft.name = profile.value.name; profileDraft.email = profile.value.email
     editingProfile.value = false
     profileMessage.value = 'Tus datos se actualizaron en tu cuenta.'
