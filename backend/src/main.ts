@@ -1,12 +1,14 @@
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
+  const config = app.get(ConfigService);
   app.setGlobalPrefix('api');
 
-  const corsOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:3000')
+  const corsOrigins = config.getOrThrow<string>('CORS_ORIGIN')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
@@ -19,7 +21,7 @@ async function bootstrap(): Promise<void> {
   }));
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
-  const port = Number(process.env.PORT ?? 3001);
+  const port = Number(config.getOrThrow<string>('PORT'));
   await app.listen(port, '0.0.0.0');
 }
 
