@@ -517,7 +517,7 @@ const favoriteDesigns = computed(() => favorites.value
   .filter((design): design is TattooDesign => design !== undefined))
 const today = new Date()
 const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-const upcomingBookings = computed(() => bookings.value.filter((request) => request.date >= todayKey && request.status === 'Solicitud pendiente'))
+const upcomingBookings = computed(() => bookings.value.filter((request) => request.date >= todayKey && (request.status === 'Solicitud pendiente' || request.status === 'Solicitud confirmada')))
 const historyBookings = computed(() => bookings.value.filter((request) => request.date < todayKey || request.status === 'Solicitud cancelada'))
 const bookingArtist = computed(() => artistProfiles.find((artist) => artist.slug === booking.artist)?.label ?? '')
 const bookingDate = computed(() => booking.date
