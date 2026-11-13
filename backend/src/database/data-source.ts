@@ -1,13 +1,26 @@
 import 'dotenv/config';
 import { DataSource } from 'typeorm';
 
+function requiredEnv(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`La variable de entorno ${name} es obligatoria para ejecutar migraciones.`);
+  }
+  return value;
+}
+
+const dbPort = Number(process.env.DB_PORT ?? 3306);
+if (!Number.isInteger(dbPort) || dbPort < 1 || dbPort > 65535) {
+  throw new Error('DB_PORT debe ser un entero entre 1 y 65535.');
+}
+
 export default new DataSource({
   type: 'mysql',
-  host: process.env.DB_HOST ?? '127.0.0.1',
-  port: Number(process.env.DB_PORT ?? 3306),
-  username: process.env.DB_USERNAME ?? 'inktatto_app',
-  password: process.env.DB_PASSWORD ?? '',
-  database: process.env.DB_DATABASE ?? 'inktatto_db',
+  host: requiredEnv('DB_HOST'),
+  port: dbPort,
+  username: requiredEnv('DB_USERNAME'),
+  password: requiredEnv('DB_PASSWORD'),
+  database: requiredEnv('DB_DATABASE'),
   entities: [__dirname + '/../**/*.entity{.ts,.js}'],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   migrationsTableName: 'typeorm_migrations',
