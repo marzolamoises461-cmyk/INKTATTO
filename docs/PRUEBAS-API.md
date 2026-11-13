@@ -13,7 +13,7 @@ Comprueba que los valores DB de `backend/.env` coincidan con los de la raíz. De
 
 ```powershell
 cd backend
-npm install
+npm ci
 npm run start:dev
 ```
 
@@ -89,3 +89,22 @@ curl -i -X POST http://localhost:3001/api/bookings -H "Authorization: Bearer TOK
 - 404: usuario o solicitud inexistente.
 - 409: correo duplicado.
 - 204: eliminación exitosa de usuario.
+
+## Pruebas de integración reales con MySQL
+
+La suite `backend/test/database.e2e-spec.ts` levanta el `AppModule` real y prueba
+registro, login, perfil JWT, permisos, reservas persistidas, cancelación por
+propietario, gestión administrativa y serialización de contraseñas.
+
+- En el equipo local, `npm run test:e2e -- --runInBand` ejecuta el contrato HTTP
+  simulado y deja omitida la suite MySQL por defecto.
+- La suite MySQL solo se activa cuando `RUN_DB_E2E=true` y comprueba antes de
+  conectarse que `DB_DATABASE` termine en `_test`. Si no cumple esa condición,
+  aborta antes de abrir la aplicación.
+- GitHub Actions crea una instancia MySQL temporal con la base `inktatto_test`,
+  aplica las migraciones y ejecuta la suite real. No uses `inktatto_db` ni otra
+  base de datos de trabajo para esta prueba.
+
+Para ejecutar la suite manualmente, configura primero una base de datos aislada
+cuyo nombre termine en `_test`, con credenciales de prueba, y solo entonces
+establece `RUN_DB_E2E=true` en esa terminal.
