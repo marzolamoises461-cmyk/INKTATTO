@@ -23,7 +23,7 @@ npm install
 npm run start:dev
 ```
 
-MySQL queda en `127.0.0.1:3306` y la API en `http://localhost:3001/api`. Las migraciones se ejecutan automáticamente al iniciar la API. Los valores del archivo de ejemplo son solo para desarrollo local.
+MySQL queda en `127.0.0.1:3306`, Adminer en `http://localhost:8080` y la API en `http://localhost:3001/api`. Para entrar a Adminer usa servidor `mysql`, usuario `inktatto_app`, la contraseña de `.env` y base `inktatto_db`. Las migraciones se ejecutan automáticamente al iniciar la API. Los valores del archivo de ejemplo son solo para desarrollo local.
 
 ## Crear administrador inicial
 
