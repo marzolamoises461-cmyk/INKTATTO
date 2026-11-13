@@ -1,7 +1,7 @@
 name: Backend CI
 on:
   push:
-    branches: [main, "feature/**"]
+    branches: [main, "feature/**", "chore/**"]
   pull_request:
     branches: [main]
 concurrency:
@@ -75,8 +75,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: frontend/package-lock.json
       - name: Install frontend dependencies
+        working-directory: frontend
         run: npm ci
       - name: Build Nuxt frontend
+        working-directory: frontend
         run: npm run build
