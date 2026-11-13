@@ -6,9 +6,11 @@ export interface AuthUser {
 }
 
 interface AuthResponse {
-  accessToken: string
-  tokenType: 'Bearer'
-  expiresIn: number
+  token: string
+  user: AuthUser
+}
+
+interface AuthProfileResponse {
   user: AuthUser
 }
 
@@ -27,9 +29,9 @@ export function useAuth() {
   }
 
   function saveSession(response: AuthResponse): void {
-    token.value = response.accessToken
+    token.value = response.token
     user.value = response.user
-    if (import.meta.client) localStorage.setItem('inktatto-access-token', response.accessToken)
+    if (import.meta.client) localStorage.setItem('inktatto-access-token', response.token)
   }
 
   async function login(email: string, password: string): Promise<void> {
@@ -54,7 +56,8 @@ export function useAuth() {
     if (!saved) return
     token.value = saved
     try {
-      user.value = await api<AuthUser>('/auth/profile')
+      const response = await api<AuthProfileResponse>('/auth/profile')
+      user.value = response.user
     } catch {
       logout()
     }
