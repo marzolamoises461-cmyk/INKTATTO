@@ -11,8 +11,8 @@ import { User } from '../src/user/entities/user.entity';
 const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
 
 (runDatabaseE2e ? describe : describe.skip)('API real con MySQL (integration e2e)', () => {
-  let app: INestApplication;
-  let users: Repository<User>;
+  let app: INestApplication | null = null;
+  let users: Repository<User> | null = null;
   let customerToken = '';
   let secondCustomerToken = '';
   let adminToken = '';
@@ -44,14 +44,14 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
     await app.init();
 
     users = app.get<Repository<User>>(getRepositoryToken(User));
-    const admin = users.create({
+    const admin = users!.create({
       email: adminEmail,
       password: await bcrypt.hash(password, 10),
       fullName: 'Administrador de pruebas',
       role: 'admin',
       isActive: true,
     });
-    await users.save(admin);
+    await users!.save(admin);
   });
 
   afterAll(async () => {
@@ -62,7 +62,7 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
   });
 
   it('rechaza rutas protegidas sin token', async () => {
-    await request(app.getHttpServer()).get('/api/bookings/mine').expect(401);
+    await request(app!.getHttpServer()).get('/api/bookings/mine').expect(401);
     await request(app.getHttpServer()).get('/api/users').expect(401);
   });
 
@@ -184,7 +184,7 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
   });
 
   it('invalida el token cuando la cuenta se desactiva', async () => {
-    await users.update({ email: customerEmail }, { isActive: false });
+    await users!.update({ email: customerEmail }, { isActive: false });
 
     await request(app.getHttpServer())
       .get('/api/auth/profile')
