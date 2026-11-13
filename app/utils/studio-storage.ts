@@ -10,7 +10,7 @@ export interface BookingRequest {
   size: string
   name: string
   email: string
-  status: 'Solicitud pendiente' | 'Solicitud cancelada'
+  status: 'Solicitud pendiente' | 'Solicitud confirmada' | 'Solicitud cancelada'
   createdAt: string
 }
 
