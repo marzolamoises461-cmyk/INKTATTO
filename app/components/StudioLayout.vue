@@ -117,6 +117,25 @@ const menuOpen = ref(false)
   text-transform: uppercase;
 }
 
+.studio-navigation a:last-child {
+  display: inline-flex;
+  min-height: 36px;
+  align-self: center;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 0 15px;
+  border: 1px solid rgba(233, 230, 223, .42);
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.studio-navigation a:last-child:hover,
+.studio-navigation a:last-child.is-active {
+  border-color: var(--studio-paper);
+  background: rgba(233, 230, 223, .06);
+}
+
 .studio-navigation a,
 .studio-footer a {
   transition: color .2s ease;

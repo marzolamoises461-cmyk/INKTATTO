@@ -38,7 +38,6 @@
       <div class="hero__footer">
         <p>彫 <span>/</span> Hori</p>
         <p class="scroll-cue"><span></span> Pasa a la siguiente página</p>
-        <p>01 <span>/</span> {{ pageCount.toString().padStart(2, '0') }}</p>
       </div>
     </section>
 
@@ -94,13 +93,13 @@
       <section class="studio-about__section studio-about__artists" aria-labelledby="studio-about-artists">
         <header class="studio-about__heading">
           <div><p class="eyebrow"><span></span> Personas detrás de la tinta</p><h2 id="studio-about-artists">Nuestros<br /><em>artistas.</em></h2></div>
-          <p>Una primera referencia de los perfiles disponibles. Los nombres y fotografías reales del equipo están pendientes de publicación.</p>
+          <p>Conoce a las personas que dan vida al arte de KAGE TATTOO.</p>
         </header>
         <div class="studio-about__artist-list">
           <article v-for="(artist, index) in artistProfiles" :key="artist.slug" class="studio-about__artist">
-            <img :src="artist.image" :alt="`Imagen de referencia para ${artist.label}`" loading="lazy" />
-            <div><p>Perfil de referencia · 0{{ index + 1 }}</p><h3>{{ artist.label }}</h3><span>{{ artist.specialty }}</span></div>
-            <span class="studio-about__artist-note">Presentación por confirmar</span>
+            <img :src="artist.image" :alt="`Fotografía de ${artist.label}, equipo de KAGE TATTOO`" loading="lazy" />
+            <div><p>Equipo KAGE TATTOO · 0{{ index + 1 }}</p><h3>{{ artist.label }}</h3><span>{{ artist.specialty }}</span></div>
+            <span class="studio-about__artist-note">Equipo KAGE TATTOO</span>
           </article>
         </div>
         <a class="text-link" href="#equipo">Ver la sección Equipo <span>↗</span></a>
@@ -233,8 +232,8 @@
     <section id="reserva" v-show="activePage === 'reserva'" class="home-screen booking-screen page-screen">
       <p class="eyebrow"><span></span> Una conversación antes de la tinta</p>
       <h2>Reserva una<br /><em>consulta.</em></h2>
-      <p class="screen-intro">Comparte tu idea y tus preferencias. La solicitud se guarda en este navegador y no confirma una cita.</p>
-      <p class="screen-notice">Esta web no está conectada a una agenda ni a un servidor. El equipo debe confirmar la disponibilidad por correo.</p>
+      <p class="screen-intro">Comparte tu idea y tus preferencias. Tu solicitud quedará registrada en la cuenta y podrá ser revisada por el estudio.</p>
+      <p v-if="!isAuthenticated" class="screen-notice">Para enviar una solicitud debes iniciar sesión o crear una cuenta. <a href="#acceso">Ir al acceso ↗</a></p>
       <div class="booking-layout">
         <form class="screen-form booking-form" @submit.prevent="submitBooking">
           <label class="screen-field">Tu nombre *<input v-model.trim="booking.name" autocomplete="name" required maxlength="100" /></label>
@@ -243,13 +242,13 @@
             <select v-model="booking.artist" required><option disabled value="">Selecciona un perfil</option><option v-for="artist in artistProfiles" :key="artist.slug" :value="artist.slug">{{ artist.label }} · {{ artist.specialty }}</option></select>
           </label>
           <label class="screen-field">Fecha preferida *<input v-model="booking.date" type="date" :min="minDate" required /></label>
-          <fieldset class="screen-field booking-time"><legend>Horario preferido *</legend><div class="booking-times"><label v-for="time in timeSlots" :key="time" :class="{ 'is-active': booking.time === time }"><input v-model="booking.time" type="radio" name="booking-time" :value="time" required />{{ time }}</label></div><small>Horarios orientativos; sujetos a confirmación.</small></fieldset>
+          <label class="screen-field">Horario preferido *<select v-model="booking.time" required><option disabled value="">Selecciona una hora</option><option v-for="time in timeSlots" :key="time" :value="time">{{ formatBookingTime(time) }}</option></select><small>Selecciona una hora entre las 9:00 AM y las 5:00 PM.</small></label>
           <label class="screen-field">Zona del cuerpo *<select v-model="booking.bodyArea" required><option disabled value="">Selecciona una zona</option><option v-for="area in bodyAreas" :key="area">{{ area }}</option></select></label>
           <label class="screen-field">Tamaño aproximado *<select v-model="booking.size" required><option disabled value="">Selecciona el tamaño</option><option v-for="size in sizes" :key="size">{{ size }}</option></select></label>
           <label class="screen-field screen-field--full">Describe tu idea *<textarea v-model.trim="booking.idea" minlength="10" maxlength="1200" required placeholder="Motivo, referencias o significado que te gustaría explorar..." /><small>{{ booking.idea.length }} / 1200</small></label>
           <p v-if="bookingError" class="screen-error" role="alert">{{ bookingError }}</p>
           <p v-if="bookingMessage" class="screen-notice screen-field--full" role="status">{{ bookingMessage }}</p>
-          <button class="button button--solid screen-field--full" type="submit">Guardar solicitud en este dispositivo <span>↗</span></button>
+          <button class="button button--solid screen-field--full" type="submit" :disabled="isSubmitting">{{ isSubmitting ? 'Enviando…' : 'Enviar solicitud al estudio' }} <span>↗</span></button>
         </form>
         <aside class="booking-summary">
           <p class="eyebrow"><span></span> Resumen</p><h3>Tu consulta<br /><em>empieza aquí.</em></h3>
@@ -261,8 +260,8 @@
     <section id="equipo" v-show="activePage === 'equipo'" class="home-screen artists-screen page-screen">
       <p class="eyebrow"><span></span> Personas detrás de la tinta</p>
       <h2>El equipo<br /><em>Kage.</em></h2>
-      <p class="screen-intro">Perfiles de muestra con especialidades de referencia. Los nombres, fotos y experiencia reales están pendientes de confirmar.</p>
-      <p class="screen-notice">No se atribuyen estos diseños ni datos a personas reales del estudio.</p>
+      <p class="screen-intro">Conoce a Faver, Ernestor y Jorge: el equipo detrás de cada diseño.</p>
+      
       <div class="artist-grid">
         <article v-for="artist in artistProfiles" :key="artist.slug" class="artist-card">
           <img :src="artist.image" :alt="`Imagen de referencia para ${artist.label}`" loading="lazy" />
@@ -275,7 +274,7 @@
       <section v-if="selectedArtist" class="artist-detail">
         <button class="screen-back" type="button" @click="selectedArtist = null">← Cerrar perfil</button>
         <h3>{{ selectedArtist.label }} <em>/ {{ selectedArtist.specialty }}</em></h3>
-        <p>Perfil de muestra: la biografía y trayectoria deben completarse con información autorizada del equipo.</p>
+        <p>{{ selectedArtist.experience }}</p>
         <p>Los trabajos de referencia de esta especialidad están en la galería. <a href="#galeria">Explorar diseños ↗</a></p>
         <a class="button button--solid" href="#reserva" @click="booking.artist = selectedArtist.slug">Solicitar consulta <span>↗</span></a>
       </section>
@@ -284,10 +283,10 @@
     <section id="perfil" v-show="activePage === 'perfil'" class="home-screen profile-screen page-screen">
       <p class="eyebrow"><span></span> Área de clientes · Este navegador</p>
       <h2>Tu espacio<br /><em>Kage.</em></h2>
-      <p class="screen-intro">Tu información, solicitudes guardadas y diseños favoritos en este dispositivo. No hay una cuenta conectada.</p>
+      <p class="screen-intro">{{ isAuthenticated ? 'Tu cuenta y tus solicitudes sincronizadas con el estudio.' : 'Inicia sesión para consultar tus solicitudes y sincronizar tu información.' }}</p>
       <p v-if="profileMessage" class="screen-notice" role="status">{{ profileMessage }}</p>
       <section class="client-profile">
-        <div class="screen-heading"><div><p class="eyebrow"><span></span> Información del usuario</p><h3>{{ profile.name || 'Perfil sin completar' }}</h3></div><button class="button button--outline" type="button" @click="editingProfile = !editingProfile">{{ editingProfile ? 'Cerrar edición' : 'Editar mis datos' }}</button></div>
+        <div class="screen-heading"><div><p class="eyebrow"><span></span> Información del usuario</p><h3>{{ profile.name || 'Perfil sin completar' }}</h3><p v-if="currentUser" class="profile-role">{{ currentUser.role === 'admin' ? 'Administrador' : 'Cliente registrado' }}</p></div><div class="inline-actions"><button v-if="isAuthenticated" class="button button--outline" type="button" @click="editingProfile = !editingProfile">{{ editingProfile ? 'Cerrar edición' : 'Editar mis datos' }}</button><button v-if="isAuthenticated" class="button button--outline" type="button" @click="logout">Cerrar sesión</button><a v-else class="button button--solid" href="#acceso">Iniciar sesión</a></div></div>
         <form v-if="editingProfile" class="profile-edit" @submit.prevent="saveClientProfile">
           <label class="screen-field">Nombre<input v-model.trim="profileDraft.name" autocomplete="name" required maxlength="100" /></label>
           <label class="screen-field">Correo electrónico<input v-model.trim="profileDraft.email" type="email" autocomplete="email" required maxlength="254" /></label>
@@ -305,6 +304,21 @@
       </section>
       <section class="profile-subsection"><div class="screen-heading"><div><p class="eyebrow"><span></span> Colección personal</p><h3>Diseños <em>favoritos.</em></h3></div><a class="text-link" href="#galeria">Explorar trabajos <span>↗</span></a></div>
         <div v-if="favoriteDesigns.length" class="favorite-grid"><button v-for="design in favoriteDesigns" :key="design.slug" type="button" @click="selectDesign(design)"><img :src="design.image" :alt="design.imageAlt" loading="lazy" /><span>{{ design.category }}</span><strong>{{ design.name }}</strong></button></div><p v-else class="empty-message">Guarda un diseño desde la galería y aparecerá aquí.</p>
+      </section>
+      <section v-if="isAdmin" class="profile-subsection admin-panel">
+        <div class="screen-heading"><div><p class="eyebrow"><span></span> Zona privada</p><h3>Administración <em>Kage.</em></h3></div><button class="button button--outline" type="button" :disabled="adminLoading" @click="loadAdminDashboard">{{ adminLoading ? 'Actualizando…' : 'Actualizar datos' }}</button></div>
+        <p v-if="adminMessage" class="screen-notice" role="status">{{ adminMessage }}</p>
+        <h4>Solicitudes recibidas · {{ adminBookings.length }}</h4>
+        <article v-for="request in adminBookings" :key="request.id" class="saved-booking">
+          <div><strong>#{{ request.id }} · {{ request.user?.fullName || 'Cliente' }} · {{ request.bodyArea }}</strong><span>{{ request.user?.email }} · {{ displayDate(request.date) }} · {{ request.time }} · {{ request.status === 'pending' ? 'Pendiente' : request.status === 'confirmed' ? 'Confirmada' : 'Cancelada' }}</span><span>{{ request.artist }} · {{ request.size }} · {{ request.idea }}</span></div>
+          <div class="cancel-actions" v-if="request.status === 'pending'"><button type="button" @click="updateAdminBooking(request.id, 'confirmed')">Confirmar</button><button type="button" @click="updateAdminBooking(request.id, 'cancelled')">Cancelar</button></div>
+        </article>
+        <p v-if="!adminBookings.length" class="empty-message">Todavía no hay solicitudes registradas.</p>
+        <h4>Clientes registrados · {{ adminUsers.length }}</h4>
+        <article v-for="account in adminUsers" :key="account.id" class="saved-booking">
+          <div><strong>{{ account.fullName }}</strong><span>{{ account.email }} · {{ account.role === 'admin' ? 'Administrador' : 'Cliente' }} · {{ account.isActive ? 'Cuenta activa' : 'Cuenta desactivada' }}</span></div>
+          <button v-if="account.id !== currentUser?.id" type="button" @click="toggleUserActive(account)">{{ account.isActive ? 'Desactivar cuenta' : 'Activar cuenta' }}</button>
+        </article>
       </section>
     </section>
 
@@ -331,13 +345,15 @@
 
     <section id="acceso" v-show="activePage === 'acceso'" class="home-screen access-screen page-screen">
       <div class="access-panel">
-        <div><p class="eyebrow"><span></span> Área de clientes</p><h2>Tu espacio<br /><em>personal.</em></h2><p>Este acceso aún no está conectado a un servicio de cuentas. No uses una contraseña real.</p></div>
+        <div><p class="eyebrow"><span></span> Área de clientes</p><h2>Tu espacio<br /><em>personal.</em></h2><p>{{ isRegister ? 'Crea tu cuenta para enviar y consultar solicitudes.' : 'Accede a tu cuenta para gestionar tus solicitudes y datos.' }}</p></div>
         <form class="screen-form" @submit.prevent="submitLogin">
-          <label class="screen-field">Correo electrónico<input v-model.trim="loginEmail" type="email" required autocomplete="email" maxlength="254" /></label>
-          <label class="screen-field">Contraseña<input v-model="loginPassword" type="password" required autocomplete="current-password" maxlength="128" /></label>
+          <label v-if="isRegister" class="screen-field">Nombre completo<input v-model.trim="registerName" autocomplete="name" required maxlength="120" /></label>
+          <label class="screen-field">Correo electrónico<input v-model.trim="loginEmail" type="email" required autocomplete="email" maxlength="190" /></label>
+          <label class="screen-field">Contraseña<input v-model="loginPassword" type="password" required :autocomplete="isRegister ? 'new-password' : 'current-password'" minlength="6" maxlength="72" /></label>
           <p v-if="loginMessage" class="screen-notice" role="status">{{ loginMessage }}</p>
-          <button class="button button--solid" type="submit">Continuar <span>↗</span></button>
-          <a class="text-link" href="#perfil">Ver perfil local <span>↗</span></a>
+          <button class="button button--solid" type="submit" :disabled="isSubmitting">{{ isSubmitting ? 'Procesando…' : (isRegister ? 'Crear cuenta' : 'Iniciar sesión') }} <span>↗</span></button>
+          <button class="text-link" type="button" @click="isRegister = !isRegister; loginMessage = ''">{{ isRegister ? 'Ya tengo una cuenta · Iniciar sesión' : '¿No tienes cuenta? Crear una' }}</button>
+          <a class="text-link" href="#perfil">Ir a mi perfil <span>↗</span></a>
         </form>
       </div>
     </section>
@@ -355,11 +371,6 @@
       </span>
     </footer>
 
-    <div class="book-controls" aria-label="Controles de páginas">
-      <button type="button" :disabled="activePageIndex === 0" aria-label="Página anterior" @click="turnPage(-1)">← <span>Anterior</span></button>
-      <span class="book-controls__count">{{ (activePageIndex + 1).toString().padStart(2, '0') }} <i>/</i> {{ pageCount.toString().padStart(2, '0') }}</span>
-      <button type="button" :disabled="activePageIndex === pageCount - 1" aria-label="Página siguiente" @click="turnPage(1)"><span>Siguiente</span> →</button>
-    </div>
   </main>
 </template>
 
@@ -367,15 +378,13 @@
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import heroImage from '~/assets/ChatGPT Image 10 sept 2026, 15_29_35.png'
 import { artistProfiles, categories, designs, type TattooDesign } from '~/data/studio'
+import { AUTH_TOKEN_KEY, type ApiBooking, type ApiUser, normalizeApiError } from '~/utils/api-client'
 import {
-  BOOKINGS_KEY,
   formatBookingDate,
   readBookings,
   readFavorites,
   readProfile,
-  saveBooking,
   saveFavorites,
-  saveProfile,
   type BookingRequest,
   type ClientProfile,
 } from '~/utils/studio-storage'
@@ -440,9 +449,7 @@ const studioStyles = [
   },
 ]
 const pageIds = ['inicio', 'estudio', 'especialidades', 'frase', 'proceso', 'galeria', 'reserva', 'equipo', 'perfil', 'contacto', 'acceso']
-const pageCount = pageIds.length
 const activePage = ref('inicio')
-const activePageIndex = computed(() => pageIds.indexOf(activePage.value))
 const selectedCategory = ref('Todos')
 const selectedDesign = ref<TattooDesign | null>(null)
 const selectedArtist = ref<(typeof artistProfiles)[number] | null>(null)
@@ -461,7 +468,26 @@ const pendingCancellation = ref<string | null>(null)
 const minDate = ref('')
 const loginEmail = ref('')
 const loginPassword = ref('')
-const timeSlots = ['10:00', '12:00', '15:00', '17:00']
+const registerName = ref('')
+const isRegister = ref(false)
+const isSubmitting = ref(false)
+const authToken = ref('')
+const currentUser = ref<ApiUser | null>(null)
+const isAuthenticated = computed(() => Boolean(authToken.value && currentUser.value))
+const isAdmin = computed(() => currentUser.value?.role === 'admin')
+const adminBookings = ref<(ApiBooking & { user?: ApiUser })[]>([])
+const adminUsers = ref<(ApiUser & { isActive: boolean })[]>([])
+const adminMessage = ref('')
+const adminLoading = ref(false)
+const runtimeConfig = useRuntimeConfig()
+const apiBase = String(runtimeConfig.public.apiBase).replace(/\/$/, '')
+const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00']
+const formatBookingTime = (time: string) => {
+  const [hours, minutes] = time.split(':').map(Number)
+  const suffix = hours < 12 ? 'AM' : 'PM'
+  const displayHour = hours % 12 || 12
+  return `${displayHour}:${String(minutes).padStart(2, '0')} ${suffix}`
+}
 const bodyAreas = ['Brazo', 'Espalda', 'Pierna', 'Hombro', 'Pecho', 'Costillas', 'Otra zona']
 const sizes = ['Pequeño · hasta 8 cm', 'Mediano · 8–18 cm', 'Grande · más de 18 cm', 'Por definir en consulta']
 const booking = reactive({
@@ -489,7 +515,7 @@ const favoriteDesigns = computed(() => favorites.value
   .filter((design): design is TattooDesign => design !== undefined))
 const today = new Date()
 const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-const upcomingBookings = computed(() => bookings.value.filter((request) => request.date >= todayKey && request.status === 'Solicitud pendiente'))
+const upcomingBookings = computed(() => bookings.value.filter((request) => request.date >= todayKey && (request.status === 'Solicitud pendiente' || request.status === 'Solicitud confirmada')))
 const historyBookings = computed(() => bookings.value.filter((request) => request.date < todayKey || request.status === 'Solicitud cancelada'))
 const bookingArtist = computed(() => artistProfiles.find((artist) => artist.slug === booking.artist)?.label ?? '')
 const bookingDate = computed(() => booking.date
@@ -500,27 +526,71 @@ onMounted(() => {
   const today = new Date()
   minDate.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   loadLocalData()
+  void loadAccountData()
   window.addEventListener('hashchange', handleHashChange)
-  window.addEventListener('keydown', handlePageKeydown)
   document.addEventListener('click', handlePageLinkClick)
   setPageFromHash()
 })
 onUnmounted(() => {
   window.removeEventListener('hashchange', handleHashChange)
-  window.removeEventListener('keydown', handlePageKeydown)
   document.removeEventListener('click', handlePageLinkClick)
 })
 
 function loadLocalData() {
   try {
     favorites.value = readFavorites()
-    bookings.value = readBookings()
     profile.value = readProfile()
     profileDraft.name = profile.value.name
     profileDraft.email = profile.value.email
+    authToken.value = localStorage.getItem(AUTH_TOKEN_KEY) || ''
   } catch (error) {
     storageMessage.value = error instanceof Error ? error.message : 'No se pudieron cargar los datos guardados en este navegador.'
     profileMessage.value = storageMessage.value
+  }
+}
+
+async function apiRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const headers = new Headers(options.headers || {})
+  if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
+  if (authToken.value) headers.set('Authorization', `Bearer ${authToken.value}`)
+  const response = await fetch(`${apiBase}${path}`, { ...options, headers })
+  const payload = await response.json().catch(() => null)
+  if (!response.ok) throw new Error(normalizeApiError(payload, `La solicitud falló (HTTP ${response.status}).`))
+  return payload as T
+}
+
+function mapApiBooking(item: ApiBooking): BookingRequest {
+  return {
+    id: String(item.id), artist: item.artist, date: String(item.date).slice(0, 10), time: String(item.time).slice(0, 5),
+    bodyArea: item.bodyArea, size: item.size, idea: item.idea,
+    name: item.user?.fullName || profile.value.name, email: item.user?.email || profile.value.email,
+    status: item.status === 'confirmed' ? 'Solicitud confirmada' : item.status === 'cancelled' ? 'Solicitud cancelada' : 'Solicitud pendiente',
+    createdAt: item.createdAt,
+  }
+}
+
+async function loadAccountData() {
+  if (!authToken.value) {
+    bookings.value = readBookings()
+    return
+  }
+  try {
+    const response = await apiRequest<{ user: ApiUser }>('/auth/profile')
+    currentUser.value = response.user
+    profile.value = { name: response.user.fullName, email: response.user.email }
+    booking.name = profile.value.name; booking.email = profile.value.email
+    profileDraft.name = profile.value.name
+    profileDraft.email = profile.value.email
+    const remoteBookings = await apiRequest<ApiBooking[]>('/bookings/mine')
+    bookings.value = remoteBookings.map(mapApiBooking)
+    if (isAdmin.value) await loadAdminDashboard()
+    profileMessage.value = ''
+  } catch (error) {
+    authToken.value = ''
+    currentUser.value = null
+    localStorage.removeItem(AUTH_TOKEN_KEY)
+    bookings.value = readBookings()
+    profileMessage.value = error instanceof Error ? `No se pudo sincronizar tu cuenta: ${error.message}` : 'No se pudo sincronizar tu cuenta.'
   }
 }
 
@@ -577,17 +647,6 @@ function handlePageLinkClick(event: MouseEvent) {
   navigateToPage(hash)
 }
 
-function turnPage(direction: number) {
-  const nextIndex = Math.min(pageCount - 1, Math.max(0, activePageIndex.value + direction))
-  navigateToPage(pageIds[nextIndex]!)
-}
-
-function handlePageKeydown(event: KeyboardEvent) {
-  if (event.altKey || event.ctrlKey || event.metaKey || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement) return
-  if (event.key === 'ArrowRight' || event.key === 'PageDown') turnPage(1)
-  if (event.key === 'ArrowLeft' || event.key === 'PageUp') turnPage(-1)
-}
-
 function toggleFavorite(slug: string) {
   try {
     favorites.value = favorites.value.includes(slug)
@@ -600,55 +659,50 @@ function toggleFavorite(slug: string) {
   }
 }
 
-function submitBooking() {
+async function submitBooking() {
   bookingError.value = ''
   bookingMessage.value = ''
-  if (!booking.name || !booking.email || !booking.artist || !booking.date || !booking.time || !booking.bodyArea || !booking.size || booking.idea.length < 10) {
-    bookingError.value = 'Completa todos los campos obligatorios. La idea debe tener al menos 10 caracteres.'
-    return
+  if (!isAuthenticated.value) { bookingError.value = 'Inicia sesión o crea una cuenta antes de enviar tu solicitud.'; navigateToPage('acceso'); return }
+  if (!booking.artist || !booking.date || !booking.time || !booking.bodyArea || !booking.size || booking.idea.length < 10) {
+    bookingError.value = 'Completa todos los campos obligatorios. La idea debe tener al menos 10 caracteres.'; return
   }
-  if (booking.date < minDate.value) {
-    bookingError.value = 'Elige una fecha de hoy o posterior.'
-    return
-  }
-  const request: BookingRequest = {
-    ...booking,
-    id: globalThis.crypto.randomUUID(),
-    status: 'Solicitud pendiente',
-    createdAt: new Date().toISOString(),
-  }
+  if (booking.date < minDate.value) { bookingError.value = 'Elige una fecha de hoy o posterior.'; return }
+  isSubmitting.value = true
   try {
-    saveBooking(request)
-    bookings.value = readBookings()
-    bookingMessage.value = 'Solicitud guardada en este navegador. No se ha enviado ni confirmado; contacta con el estudio para verificar disponibilidad.'
+    await apiRequest<ApiBooking>('/bookings', { method: 'POST', body: JSON.stringify({ artist: booking.artist, date: booking.date, time: booking.time, bodyArea: booking.bodyArea, size: booking.size, idea: booking.idea }) })
+    const remoteBookings = await apiRequest<ApiBooking[]>('/bookings/mine')
+    bookings.value = remoteBookings.map(mapApiBooking)
+    bookingMessage.value = '¡Solicitud enviada! El estudio la recibió y revisará la disponibilidad. La cita aún no está confirmada.'
+    booking.idea = ''
+    navigateToPage('perfil')
   } catch (error) {
-    bookingError.value = error instanceof Error ? `No se pudo guardar la solicitud: ${error.message}` : 'No se pudo guardar la solicitud en este dispositivo.'
-  }
+    bookingError.value = error instanceof Error ? `No se pudo enviar la solicitud: ${error.message}` : 'No se pudo enviar la solicitud.'
+  } finally { isSubmitting.value = false }
 }
 
-function saveClientProfile() {
+async function saveClientProfile() {
+  if (!isAuthenticated.value) { profileMessage.value = 'Inicia sesión para actualizar tu perfil.'; return }
   try {
-    saveProfile(profileDraft)
-    profile.value = { ...profileDraft }
+    const response = await apiRequest<{ user: ApiUser }>('/auth/profile', { method: 'PATCH', body: JSON.stringify({ fullName: profileDraft.name, email: profileDraft.email }) })
+    currentUser.value = response.user
+    profile.value = { name: response.user.fullName, email: response.user.email }
+    booking.name = profile.value.name; booking.email = profile.value.email
+    profileDraft.name = profile.value.name; profileDraft.email = profile.value.email
     editingProfile.value = false
-    profileMessage.value = 'Tus datos se guardaron solo en este navegador.'
-  } catch (error) {
-    profileMessage.value = error instanceof Error ? `No se pudo guardar el perfil: ${error.message}` : 'No se pudo guardar el perfil.'
-  }
+    profileMessage.value = 'Tus datos se actualizaron en tu cuenta.'
+  } catch (error) { profileMessage.value = error instanceof Error ? `No se pudo actualizar el perfil: ${error.message}` : 'No se pudo actualizar el perfil.' }
 }
 
-function cancelBooking(id: string) {
+async function cancelBooking(id: string) {
   const request = bookings.value.find((item) => item.id === id)
-  if (!request || request.status !== 'Solicitud pendiente') return
-  const updatedBookings = bookings.value.map((item) => item.id === id ? { ...item, status: 'Solicitud cancelada' as const } : item)
+  if (!request || request.status !== 'Solicitud pendiente' || !isAuthenticated.value) return
   try {
-    localStorage.setItem(BOOKINGS_KEY, JSON.stringify(updatedBookings))
-    bookings.value = updatedBookings
+    await apiRequest<ApiBooking>(`/bookings/${encodeURIComponent(id)}/cancel`, { method: 'PATCH' })
+    const remoteBookings = await apiRequest<ApiBooking[]>('/bookings/mine')
+    bookings.value = remoteBookings.map(mapApiBooking)
     pendingCancellation.value = null
-    profileMessage.value = 'Solicitud marcada como cancelada en este navegador. Si ya escribiste al estudio, avísales directamente.'
-  } catch (error) {
-    profileMessage.value = error instanceof Error ? `No se pudo cancelar la solicitud local: ${error.message}` : 'No se pudo actualizar la solicitud.'
-  }
+    profileMessage.value = 'La solicitud fue cancelada en el sistema del estudio.'
+  } catch (error) { profileMessage.value = error instanceof Error ? `No se pudo cancelar: ${error.message}` : 'No se pudo cancelar la solicitud.' }
 }
 
 function displayDate(value: string) {
@@ -666,9 +720,70 @@ function sendContact() {
   window.location.href = `mailto:hola@kagetattoo.es?subject=${subject}&body=${body}`
 }
 
-function submitLogin() {
-  loginMessage.value = 'El acceso no está conectado a un sistema de cuentas. Tus datos no se enviaron ni se guardaron.'
-  loginPassword.value = ''
+async function submitLogin() {
+  loginMessage.value = ''
+  isSubmitting.value = true
+  try {
+    const path = isRegister.value ? '/auth/register' : '/auth/login'
+    const body = isRegister.value
+      ? { fullName: registerName.value.trim(), email: loginEmail.value.trim(), password: loginPassword.value }
+      : { email: loginEmail.value.trim(), password: loginPassword.value }
+    const response = await apiRequest<{ token: string; user: ApiUser }>(path, { method: 'POST', body: JSON.stringify(body) })
+    authToken.value = response.token
+    currentUser.value = response.user
+    localStorage.setItem(AUTH_TOKEN_KEY, response.token)
+    profile.value = { name: response.user.fullName, email: response.user.email }
+    profileDraft.name = profile.value.name; profileDraft.email = profile.value.email
+    loginPassword.value = ''
+    isRegister.value = false
+    loginMessage.value = 'Acceso correcto. Tu cuenta está conectada.'
+    await loadAccountData()
+    navigateToPage('perfil')
+  } catch (error) {
+    loginMessage.value = error instanceof Error ? error.message : 'No se pudo iniciar sesión.'
+  } finally { isSubmitting.value = false }
+}
+
+
+async function loadAdminDashboard() {
+  if (!isAdmin.value) return
+  adminLoading.value = true
+  adminMessage.value = ''
+  try {
+    const [requests, accounts] = await Promise.all([
+      apiRequest<(ApiBooking & { user?: ApiUser })[]>('/bookings'),
+      apiRequest<(ApiUser & { isActive: boolean })[]>('/users'),
+    ])
+    adminBookings.value = requests
+    adminUsers.value = accounts
+  } catch (error) {
+    adminMessage.value = error instanceof Error ? `No se pudo cargar la administración: ${error.message}` : 'No se pudo cargar la administración.'
+  } finally { adminLoading.value = false }
+}
+
+async function updateAdminBooking(id: number, status: 'confirmed' | 'cancelled') {
+  try {
+    await apiRequest<ApiBooking>(`/bookings/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) })
+    await loadAdminDashboard()
+    adminMessage.value = status === 'confirmed' ? 'La solicitud quedó confirmada.' : 'La solicitud quedó cancelada.'
+  } catch (error) { adminMessage.value = error instanceof Error ? error.message : 'No se pudo actualizar la solicitud.' }
+}
+
+async function toggleUserActive(account: ApiUser & { isActive: boolean }) {
+  try {
+    await apiRequest<ApiUser & { isActive: boolean }>(`/users/${account.id}`, { method: 'PATCH', body: JSON.stringify({ isActive: !account.isActive }) })
+    await loadAdminDashboard()
+    adminMessage.value = account.isActive ? 'Cuenta desactivada.' : 'Cuenta activada.'
+  } catch (error) { adminMessage.value = error instanceof Error ? error.message : 'No se pudo actualizar la cuenta.' }
+}
+
+function logout() {
+  authToken.value = ''
+  currentUser.value = null
+  localStorage.removeItem(AUTH_TOKEN_KEY)
+  bookings.value = readBookings()
+  profileMessage.value = 'Has cerrado sesión.'
+  navigateToPage('acceso')
 }
 </script>
 
@@ -895,12 +1010,6 @@ h1 em, h2 em, blockquote em { color: var(--red); font-style: italic; }
 .access-panel > div > p:last-child { max-width: 400px; color: #a3a5a1; font-size: 12px; line-height: 1.8; }
 .access-panel form { align-content: center; }
 .mobile-nav-toggle { display: none; }
-.book-controls { position: absolute; z-index: 25; right: 5.5vw; bottom: 18px; left: 5.5vw; display: flex; align-items: center; justify-content: space-between; pointer-events: none; }
-.book-controls button { display: inline-flex; align-items: center; gap: 12px; min-height: 42px; padding: 0 15px; border: 1px solid rgba(233,230,223,.35); background: rgba(8,9,10,.92); color: var(--paper); cursor: pointer; font: 10px 'DM Mono', monospace; letter-spacing: .1em; text-transform: uppercase; pointer-events: auto; transition: border-color .2s ease, color .2s ease; }
-.book-controls button:hover:not(:disabled) { border-color: var(--red); color: #fff; }
-.book-controls button:disabled { opacity: .35; cursor: default; }
-.book-controls__count { position: absolute; left: 50%; color: var(--paper); font: 10px 'DM Mono', monospace; letter-spacing: .12em; transform: translateX(-50%); }
-.book-controls__count i { margin: 0 7px; color: var(--red); font-style: normal; }
 .site-footer { position: absolute; right: 0; bottom: 76px; left: 0; z-index: 2; }
 @media (max-width: 900px) {
   .home-design-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -962,8 +1071,6 @@ h1 em, h2 em, blockquote em { color: var(--red); font-style: italic; }
   .feature-section .feature-content { min-height: 55vh; padding: 50px 22px; }
   .quote-section.page-screen { padding: 110px 22px 100px; }
   .quote-mark { top: 125px; left: 22px; }
-  .book-controls { right: 14px; bottom: 12px; left: 14px; }
-  .book-controls button { min-height: 38px; padding: 0 10px; font-size: 8px; }
   .site-footer { bottom: 62px; padding: 15px 22px; }
 }
 @media (max-width: 430px) {

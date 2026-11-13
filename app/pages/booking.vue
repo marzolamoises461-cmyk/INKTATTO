@@ -10,7 +10,9 @@
         <p class="booking-aside">01 <span>/</span> Solicitud<br />02 <span>/</span> Confirmación del estudio</p>
       </header>
 
-      <p class="studio-notice booking-disclaimer">Este sitio no está conectado a una agenda ni a un servidor. La solicitud se guarda solo en este navegador; no se envía y no confirma una cita.</p>
+      <p class="studio-notice booking-disclaimer">Las solicitudes se guardan en la base de datos del estudio. Necesitas iniciar sesión para enviar una solicitud; el equipo confirmará la disponibilidad.</p>
+
+      <p v-if="!user" class="studio-notice booking-disclaimer">Para enviar una solicitud, <NuxtLink to="/login">inicia sesión o crea tu cuenta ↗</NuxtLink>.</p>
 
       <div class="booking-layout">
         <form class="booking-form studio-card" @submit.prevent="submitRequest">
@@ -19,11 +21,11 @@
             <div class="booking-fields booking-fields--two">
               <label class="studio-field">
                 Tu nombre *
-                <input v-model.trim="form.name" name="name" autocomplete="name" required maxlength="100" />
+                <input v-model.trim="form.name" name="name" autocomplete="name" required maxlength="120" :readonly="Boolean(user)" />
               </label>
               <label class="studio-field">
                 Correo electrónico *
-                <input v-model.trim="form.email" name="email" type="email" autocomplete="email" required maxlength="254" />
+                <input v-model.trim="form.email" name="email" type="email" autocomplete="email" required maxlength="190" :readonly="Boolean(user)" />
               </label>
             </div>
           </section>
@@ -82,7 +84,7 @@
 
           <p v-if="formError" class="booking-error" role="alert">{{ formError }}</p>
           <p v-if="confirmation" class="studio-notice" role="status">{{ confirmation }}</p>
-          <button class="studio-button booking-submit" type="submit">Guardar solicitud en este dispositivo <span>↗</span></button>
+          <button class="studio-button booking-submit" type="submit" :disabled="submitting">{{ submitting ? 'Enviando…' : 'Enviar solicitud al estudio' }} <span>↗</span></button>
         </form>
 
         <aside class="booking-summary studio-card">
@@ -95,7 +97,7 @@
             <div><dt>Zona</dt><dd>{{ form.bodyArea || 'Por elegir' }}</dd></div>
             <div><dt>Tamaño</dt><dd>{{ form.size || 'Por elegir' }}</dd></div>
           </dl>
-          <p class="booking-summary__note">La solicitud queda guardada en este dispositivo. Para enviarla al estudio, contacta directamente por correo.</p>
+          <p class="booking-summary__note">Al enviar la solicitud, se guarda en la base de datos del estudio. El equipo revisará tu petición y confirmará la disponibilidad.</p>
           <NuxtLink class="booking-contact-link" to="/contact">Contactar con el estudio ↗</NuxtLink>
         </aside>
       </div>
@@ -108,42 +110,43 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import StudioLayout from '../components/StudioLayout.vue'
 import { artistProfiles } from '../data/studio'
-import { saveBooking, type BookingRequest } from '../utils/studio-storage'
 
 const route = useRoute()
+const { user, api, initialize } = useAuth()
 const timeSlots = ['10:00', '12:00', '15:00', '17:00']
 const bodyAreas = ['Brazo', 'Espalda', 'Pierna', 'Hombro', 'Pecho', 'Costillas', 'Otra zona']
 const sizes = ['Pequeño · hasta 8 cm', 'Mediano · 8–18 cm', 'Grande · más de 18 cm', 'Por definir en consulta']
-const form = reactive({
-  name: '',
-  email: '',
-  artist: '',
-  date: '',
-  time: '',
-  bodyArea: '',
-  size: '',
-  idea: '',
-})
+const form = reactive({ name: '', email: '', artist: '', date: '', time: '', bodyArea: '', size: '', idea: '' })
 const minDate = ref('')
 const confirmation = ref('')
 const formError = ref('')
+const submitting = ref(false)
 
-onMounted(() => {
+onMounted(async () => {
   const today = new Date()
   minDate.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   const requestedArtist = String(route.query.artist ?? '')
   if (artistProfiles.some((artist) => artist.slug === requestedArtist)) form.artist = requestedArtist
+  await initialize()
+  if (user.value) {
+    form.name = user.value.fullName
+    form.email = user.value.email
+  }
 })
 
 const artistLabel = computed(() => artistProfiles.find((artist) => artist.slug === form.artist)?.label ?? '')
 const formattedDate = computed(() => form.date
-  ? new Intl.DateTimeFormat('es-ES', { dateStyle: 'long' }).format(new Date(`${form.date}T12:00:00`))
+  ? new Intl.DateTimeFormat('es-CO', { dateStyle: 'long' }).format(new Date(`${form.date}T12:00:00`))
   : '')
 
-function submitRequest() {
+async function submitRequest() {
   formError.value = ''
   confirmation.value = ''
-  if (!form.name || !form.email || !form.artist || !form.date || !form.time || !form.bodyArea || !form.size || form.idea.length < 10) {
+  if (!user.value) {
+    formError.value = 'Inicia sesión para enviar y consultar tus solicitudes.'
+    return
+  }
+  if (!form.artist || !form.date || !form.time || !form.bodyArea || !form.size || form.idea.length < 10) {
     formError.value = 'Completa todos los campos obligatorios. La idea debe tener al menos 10 caracteres.'
     return
   }
@@ -151,19 +154,26 @@ function submitRequest() {
     formError.value = 'Elige una fecha de hoy o posterior.'
     return
   }
-
-  const request: BookingRequest = {
-    ...form,
-    id: globalThis.crypto.randomUUID(),
-    status: 'Solicitud pendiente',
-    createdAt: new Date().toISOString(),
-  }
-
+  submitting.value = true
   try {
-    saveBooking(request)
-    confirmation.value = 'La solicitud quedó guardada en este navegador. No se ha enviado ni confirmado; contacta con el estudio para verificar fecha y horario.'
-  } catch (error) {
-    formError.value = error instanceof Error ? `No se pudo guardar la solicitud: ${error.message}` : 'No se pudo guardar la solicitud en este dispositivo.'
+    await api('/bookings', {
+      method: 'POST',
+      body: {
+        artist: form.artist,
+        date: form.date,
+        time: form.time,
+        bodyArea: form.bodyArea,
+        size: form.size,
+        idea: form.idea,
+      },
+    })
+    confirmation.value = '¡Solicitud enviada! Quedó guardada en la base de datos del estudio como pendiente. El equipo debe confirmar la fecha y el horario.'
+    form.idea = ''
+  } catch (error: unknown) {
+    const detail = (error as { data?: { message?: string | string[] } }).data?.message
+    formError.value = Array.isArray(detail) ? detail.join('. ') : detail ?? 'No se pudo enviar la solicitud. Comprueba tu conexión e inténtalo de nuevo.'
+  } finally {
+    submitting.value = false
   }
 }
 </script>
