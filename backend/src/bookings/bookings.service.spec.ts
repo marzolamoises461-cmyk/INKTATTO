@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { User } from '../user/entities/user.entity';
 import { Booking } from './entities/booking.entity';
@@ -47,6 +47,18 @@ describe('BookingsService', () => {
     });
     expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({ user: customer, status: 'pending' }));
     expect(result.status).toBe('pending');
+  });
+
+  it('rejects a booking date in the past', async () => {
+    await expect(service.create(customer, {
+      artist: 'artist-one',
+      date: '2000-01-15',
+      time: '10:00',
+      bodyArea: 'Brazo',
+      size: 'Mediano',
+      idea: 'Diseño de prueba suficientemente largo',
+    })).rejects.toBeInstanceOf(BadRequestException);
+    expect(repository.create).not.toHaveBeenCalled();
   });
 
   it('allows the owner to cancel a pending booking', async () => {

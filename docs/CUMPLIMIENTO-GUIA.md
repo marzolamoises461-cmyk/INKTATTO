@@ -36,30 +36,26 @@ Además de la guía académica, se conectaron las solicitudes de citas a MySQL:
 
 ## Estado de verificación
 
-Rama de trabajo: `feature/guia-instructor-completa` (PR #1 permanece abierto como borrador).
+La copia auditada está en `main`, alineada con su referencia local `origin/main` al iniciar esta revisión. La consulta de ramas remotas requirió autenticación de GitHub y no se completó; este documento no afirma el estado actual de PRs ni de otros colaboradores.
 
-### Comprobaciones locales observadas
+El repositorio contiene esta matriz, pero no la guía original del instructor. La correspondencia solo puede certificarse respecto de los siete apartados descritos arriba.
 
-En el entorno local del desarrollador se reportaron correctamente:
+### Verificación local de esta revisión
 
-- `npm ci`.
-- `npm run lint`.
-- `npm run build`.
-- `npm test -- --runInBand`: 6 suites y 19 pruebas aprobadas.
-- `npm run test:e2e -- --runInBand`: 1 suite y 3 pruebas de contrato HTTP aprobadas. Estas pruebas usan un servicio simulado; no deben describirse como integración real con MySQL.
-- `npm run migration:show`: migraciones de usuarios y reservas aplicadas en la base local `inktatto_db`.
+- Backend: `npm ci`, `npm run lint` y `npm run build` completaron correctamente.
+- Unitarias: `npm test -- --runInBand` pasó 7 suites y 22 pruebas; la suite de integración MySQL omitió 5 pruebas.
+- E2E HTTP: `npm run test:e2e -- --runInBand` pasó 3 pruebas de contrato; la suite MySQL omitió 5 pruebas.
+- Frontend: instalación limpia con el lockfile y `npm run build` completaron correctamente con Nuxt 4.6.4.
+- Frontend: no hay script de pruebas automatizadas. `npm audit fix` actualizó dependencias compatibles; el audit restante reporta 10 vulnerabilidades (6 bajas y 4 moderadas). No se forzaron downgrades ni cambios mayores.
+- Backend: `npm audit --omit=dev` reporta 3 vulnerabilidades moderadas transitivas. npm solo ofrece resolverlas con TypeORM 1.x, un cambio mayor que requiere actualización planificada.
+- La suite MySQL real requiere `RUN_DB_E2E=true` y una base cuyo nombre termine en `_test`. No se ejecutó aquí porque Docker/MySQL de prueba no estaba disponible; nunca se apuntó a producción.
 
-### Validación automatizada de integración
+### Verificación de producción y límites
 
-Se añadió `backend/test/database.e2e-spec.ts`, que levanta el módulo NestJS real y verifica contra MySQL autenticación, JWT, serialización, roles, reservas y permisos de propietario. Está protegida por dos condiciones: `RUN_DB_E2E=true` y nombre de base terminado en `_test`. La CI usa el servicio MySQL temporal `inktatto_test`; la suite no se activa por defecto en el equipo local.
+- En la API publicada, `GET /api/health` respondió 200 y los endpoints protegidos consultados respondieron 401 sin token. Estas solicitudes no verifican registro, login válido ni escrituras.
+- La respuesta observada en Render corresponde al despliegue existente. El nuevo health check local que consulta MySQL no se ha desplegado; no se afirma que la base de producción esté sana.
+- El origen local `http://localhost:3000` pudo leer el health de Render. La prueba desde `127.0.0.1:3002` fue bloqueada por CORS; no se modificó configuración de Render.
+- No se probaron operaciones mutativas ni se inspeccionaron variables de entorno de Render o datos de producción.
+- GitHub Actions está configurado para ejecutar backend, MySQL E2E y build frontend; el estado del último workflow no pudo confirmarse sin completar autenticación de GitHub.
 
-El workflow `.github/workflows/backend-ci.yml` está configurado para ejecutarse al hacer push a `main` o a ramas `feature/**`, y también al abrir/actualizar un pull request hacia `main`. Incluye lint, compilación NestJS, pruebas unitarias, migraciones en un servicio MySQL temporal, pruebas E2E con MySQL y compilación Nuxt. La configuración del workflow está en el repositorio; no se da por aprobada la ejecución del commit actual hasta que GitHub Actions muestre ambos trabajos en verde.
-
-El código de las páginas de acceso, perfil y reserva utiliza `useAuth()` y el `apiBase` configurable mediante `NUXT_PUBLIC_API_BASE`; el flujo de reservas crea y consulta datos mediante la API.
-
-### Pendiente de confirmación final
-
-- Probar manualmente en navegador registro, login, perfil y envío/cancelación de una reserva con la API en ejecución.
-- Confirmar que `NUXT_PUBLIC_API_BASE` apunte a la URL correcta cuando se despliegue el frontend.
-
-La validación automatizada de backend, MySQL y compilación frontend ya está aprobada en GitHub Actions. Solo falta la comprobación manual del recorrido en navegador y confirmar la URL de API del despliegue frontend.
+Registro, login, perfil, reserva y administración tienen llamadas implementadas contra la API. El flujo manual completo con una cuenta de prueba y una base aislada sigue pendiente; los favoritos son locales al navegador y el formulario de contacto prepara un correo, pero no envía ni guarda mensajes en el servidor.

@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../user/entities/user.entity';
@@ -11,6 +11,9 @@ export class BookingsService {
   constructor(@InjectRepository(Booking) private readonly bookings: Repository<Booking>) {}
 
   async create(user: User, dto: CreateBookingDto): Promise<Booking> {
+    const today = new Date().toISOString().slice(0, 10);
+    if (dto.date < today) throw new BadRequestException('La fecha de la solicitud no puede estar en el pasado');
+
     const booking = this.bookings.create({ ...dto, user, status: 'pending' });
     return this.bookings.save(booking);
   }

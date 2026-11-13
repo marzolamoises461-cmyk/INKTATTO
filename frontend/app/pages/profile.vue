@@ -12,9 +12,24 @@
             <p class="studio-eyebrow">Información de la cuenta</p>
             <h2>{{ user?.fullName || 'Cargando cuenta…' }}</h2>
           </div>
+          <button v-if="!editing" class="studio-button studio-button--outline studio-button--small" type="button" @click="startEditing">Editar perfil</button>
           <button class="studio-button studio-button--outline studio-button--small" type="button" @click="signOut">Cerrar sesión</button>
         </div>
-        <dl class="client-profile__data">
+        <form v-if="editing" class="client-profile__form" @submit.prevent="saveProfile">
+          <label class="studio-field">
+            Nombre completo
+            <input v-model.trim="profileDraft.fullName" autocomplete="name" required minlength="2" maxlength="120" />
+          </label>
+          <label class="studio-field">
+            Correo electrónico
+            <input v-model.trim="profileDraft.email" type="email" autocomplete="email" required maxlength="190" />
+          </label>
+          <div class="client-profile__actions">
+            <button class="studio-button studio-button--small" type="submit" :disabled="saving">{{ saving ? 'Guardando…' : 'Guardar cambios' }}</button>
+            <button class="studio-button studio-button--outline studio-button--small" type="button" :disabled="saving" @click="editing = false">Cancelar</button>
+          </div>
+        </form>
+        <dl v-else class="client-profile__data">
           <div><dt>Nombre</dt><dd>{{ user?.fullName || '—' }}</dd></div>
           <div><dt>Correo</dt><dd>{{ user?.email || '—' }}</dd></div>
           <div><dt>Tipo de cuenta</dt><dd>{{ user?.role === 'admin' ? 'Administración' : 'Cliente' }}</dd></div>
@@ -59,7 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import StudioLayout from '../components/StudioLayout.vue'
 import { designs } from '../data/studio'
 import { readFavorites, formatBookingDate } from '../utils/studio-storage'
@@ -78,6 +93,9 @@ const bookings = ref<BookingRecord[]>([])
 const favorites = ref<string[]>([])
 const loading = ref(true)
 const pageMessage = ref('')
+const editing = ref(false)
+const saving = ref(false)
+const profileDraft = reactive({ fullName: '', email: '' })
 const favoriteDesigns = computed(() => favorites.value.map((slug) => designs.find((design) => design.slug === slug)).filter((design) => design !== undefined))
 
 onMounted(async () => {
@@ -86,6 +104,8 @@ onMounted(async () => {
     await navigateTo('/login')
     return
   }
+  profileDraft.fullName = user.value.fullName
+  profileDraft.email = user.value.email
   try {
     const [items] = await Promise.all([
       api<BookingRecord[]>('/bookings/mine'),
@@ -106,6 +126,35 @@ function monthName(value: string): string {
 
 function statusLabel(status: BookingRecord['status']): string {
   return status === 'confirmed' ? 'Cita confirmada' : status === 'cancelled' ? 'Solicitud cancelada' : 'Solicitud pendiente'
+}
+
+function startEditing(): void {
+  if (!user.value) return
+  profileDraft.fullName = user.value.fullName
+  profileDraft.email = user.value.email
+  editing.value = true
+}
+
+async function saveProfile(): Promise<void> {
+  if (!user.value) return
+  saving.value = true
+  pageMessage.value = ''
+  try {
+    const response = await api<{ user: AuthUser }>('/auth/profile', {
+      method: 'PATCH',
+      body: { fullName: profileDraft.fullName, email: profileDraft.email },
+    })
+    user.value = response.user
+    profileDraft.fullName = response.user.fullName
+    profileDraft.email = response.user.email
+    editing.value = false
+    pageMessage.value = 'Tu perfil se actualizó en la cuenta del estudio.'
+  } catch (error: unknown) {
+    const detail = (error as { data?: { message?: string | string[] } }).data?.message
+    pageMessage.value = Array.isArray(detail) ? detail.join('. ') : detail ?? 'No se pudo actualizar el perfil.'
+  } finally {
+    saving.value = false
+  }
 }
 
 async function cancelBooking(id: number): Promise<void> {
@@ -130,6 +179,8 @@ async function signOut(): Promise<void> {
 .client-profile { margin-top: 35px; padding: clamp(22px, 4vw, 40px); }
 .client-profile__heading, .client-section__heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; }
 .client-profile__heading h2 { margin: 0; font: 500 32px 'Playfair Display', serif; }
+.client-profile__form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 25px; }
+.client-profile__actions { display: flex; flex-wrap: wrap; gap: 9px; grid-column: 1 / -1; }
 .client-profile__data { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin: 25px 0 0; }
 .client-profile__data dt { margin-bottom: 6px; color: var(--studio-muted); font: 9px 'DM Mono', monospace; letter-spacing: .08em; text-transform: uppercase; }
 .client-profile__data dd { margin: 0; font-size: 13px; }
@@ -157,6 +208,7 @@ async function signOut(): Promise<void> {
 @media (max-width: 700px) {
   .client-profile__heading, .client-section__heading { align-items: start; flex-direction: column; }
   .client-profile__data { grid-template-columns: 1fr; }
+  .client-profile__form { grid-template-columns: 1fr; }
   .client-booking { align-items: start; flex-wrap: wrap; gap: 14px; }
   .client-booking__details { min-width: calc(100% - 80px); }
   .client-favorites { grid-template-columns: 1fr; }
