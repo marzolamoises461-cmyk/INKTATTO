@@ -63,11 +63,11 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
 
   it('rechaza rutas protegidas sin token', async () => {
     await request(app!.getHttpServer()).get('/api/bookings/mine').expect(401);
-    await request(app.getHttpServer()).get('/api/users').expect(401);
+    await request(app!.getHttpServer()).get('/api/users').expect(401);
   });
 
   it('registra clientes sin permitir autoasignarse el rol admin', async () => {
-    const registration = await request(app.getHttpServer())
+    const registration = await request(app!.getHttpServer())
       .post('/api/auth/register')
       .send({ email: customerEmail, password, fullName: 'Cliente de pruebas' })
       .expect(201);
@@ -76,7 +76,7 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
     expect(registration.body.user.role).toBe('user');
     expect(registration.body.user).not.toHaveProperty('password');
 
-    await request(app.getHttpServer())
+    await request(app!.getHttpServer())
       .post('/api/auth/register')
       .send({
         email: `escalamiento-${suffix}@inktatto.test`,
@@ -86,13 +86,13 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
       })
       .expect(400);
 
-    const login = await request(app.getHttpServer())
+    const login = await request(app!.getHttpServer())
       .post('/api/auth/login')
       .send({ email: customerEmail, password })
       .expect(200);
     expect(login.body.token).toBeTruthy();
 
-    const profile = await request(app.getHttpServer())
+    const profile = await request(app!.getHttpServer())
       .get('/api/auth/profile')
       .set('Authorization', `Bearer ${customerToken}`)
       .expect(200);
@@ -101,13 +101,13 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
   });
 
   it('limita las reservas al propietario y respeta el estado pendiente', async () => {
-    const second = await request(app.getHttpServer())
+    const second = await request(app!.getHttpServer())
       .post('/api/auth/register')
       .send({ email: secondEmail, password, fullName: 'Segundo cliente' })
       .expect(201);
     secondCustomerToken = second.body.token;
 
-    const created = await request(app.getHttpServer())
+    const created = await request(app!.getHttpServer())
       .post('/api/bookings')
       .set('Authorization', `Bearer ${customerToken}`)
       .send({
@@ -123,49 +123,49 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
     bookingId = created.body.id;
     expect(created.body.status).toBe('pending');
 
-    const mine = await request(app.getHttpServer())
+    const mine = await request(app!.getHttpServer())
       .get('/api/bookings/mine')
       .set('Authorization', `Bearer ${customerToken}`)
       .expect(200);
     expect(mine.body.map((item: { id: number }) => item.id)).toContain(bookingId);
 
-    await request(app.getHttpServer())
+    await request(app!.getHttpServer())
       .patch(`/api/bookings/${bookingId}/cancel`)
       .set('Authorization', `Bearer ${secondCustomerToken}`)
       .expect(403);
 
-    await request(app.getHttpServer())
+    await request(app!.getHttpServer())
       .patch(`/api/bookings/${bookingId}/cancel`)
       .set('Authorization', `Bearer ${customerToken}`)
       .expect(200)
       .expect(({ body }) => expect(body.status).toBe('cancelled'));
 
-    await request(app.getHttpServer())
+    await request(app!.getHttpServer())
       .patch(`/api/bookings/${bookingId}/cancel`)
       .set('Authorization', `Bearer ${customerToken}`)
       .expect(403);
   });
 
   it('permite al admin gestionar usuarios y reservas sin exponer contraseñas', async () => {
-    const login = await request(app.getHttpServer())
+    const login = await request(app!.getHttpServer())
       .post('/api/auth/login')
       .send({ email: adminEmail, password })
       .expect(200);
     adminToken = login.body.token;
 
-    await request(app.getHttpServer())
+    await request(app!.getHttpServer())
       .get('/api/users')
       .set('Authorization', `Bearer ${customerToken}`)
       .expect(403);
 
-    const userList = await request(app.getHttpServer())
+    const userList = await request(app!.getHttpServer())
       .get('/api/users')
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
     expect(userList.body.some((user: { email: string }) => user.email === customerEmail)).toBe(true);
     expect(userList.body.every((user: { password?: string }) => !('password' in user))).toBe(true);
 
-    await request(app.getHttpServer())
+    await request(app!.getHttpServer())
       .get('/api/bookings')
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200)
@@ -175,7 +175,7 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
         expect(booking.user).not.toHaveProperty('password');
       });
 
-    await request(app.getHttpServer())
+    await request(app!.getHttpServer())
       .patch(`/api/bookings/${bookingId}/status`)
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ status: 'confirmed' })
@@ -186,7 +186,7 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
   it('invalida el token cuando la cuenta se desactiva', async () => {
     await users!.update({ email: customerEmail }, { isActive: false });
 
-    await request(app.getHttpServer())
+    await request(app!.getHttpServer())
       .get('/api/auth/profile')
       .set('Authorization', `Bearer ${customerToken}`)
       .expect(401);
