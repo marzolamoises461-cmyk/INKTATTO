@@ -34,6 +34,31 @@ Además de la guía académica, se conectaron las solicitudes de citas a MySQL:
 - El DataSource de migraciones falla explícitamente si faltan las credenciales de conexión; no intenta conectarse con una contraseña vacía o una base predeterminada.
 - El primer administrador se crea mediante el comando local `npm run admin:create`, nunca mediante un endpoint público.
 
-## Verificación pendiente
+## Estado de verificación
 
-Los cambios están en la rama `feature/guia-instructor-completa`. GitHub Actions debe ejecutar lint, compilación, pruebas y migraciones MySQL; el equipo local debe validar el recorrido con su instalación de MySQL y revisar el recorrido visual en el navegador. No se declara todavía una prueba local de extremo a extremo aprobada hasta ver esos resultados.
+Rama de trabajo: `feature/guia-instructor-completa` (PR #1 permanece abierto como borrador).
+
+### Comprobaciones locales observadas
+
+En el entorno local del desarrollador se reportaron correctamente:
+
+- `npm ci`.
+- `npm run lint`.
+- `npm run build`.
+- `npm test -- --runInBand`: 6 suites y 19 pruebas aprobadas.
+- `npm run test:e2e -- --runInBand`: 1 suite y 3 pruebas de contrato HTTP aprobadas. Estas pruebas usan un servicio simulado; no deben describirse como integración real con MySQL.
+- `npm run migration:show`: migraciones de usuarios y reservas aplicadas en la base local `inktatto_db`.
+
+### Validación automatizada de integración
+
+Se añadió `backend/test/database.e2e-spec.ts`, que levanta el módulo NestJS real y verifica contra MySQL autenticación, JWT, serialización, roles, reservas y permisos de propietario. Está protegida por dos condiciones: `RUN_DB_E2E=true` y nombre de base terminado en `_test`. La CI usa el servicio MySQL temporal `inktatto_test`; la suite no se activa por defecto en el equipo local.
+
+El workflow también instala y compila el frontend Nuxt. El código de las páginas de acceso, perfil y reserva utiliza `useAuth()` y el `apiBase` configurable mediante `NUXT_PUBLIC_API_BASE`; el flujo de reservas crea y consulta datos mediante la API.
+
+### Pendiente de confirmación final
+
+- Revisar que la última ejecución de GitHub Actions termine en verde, incluida la suite MySQL real y la compilación Nuxt.
+- Probar manualmente en navegador registro, login, perfil y envío/cancelación de una reserva con la API en ejecución.
+- Confirmar que `NUXT_PUBLIC_API_BASE` apunte a la URL correcta cuando se despliegue el frontend.
+
+No se declara aprobada la integración real hasta que GitHub Actions complete la nueva suite y se haga la comprobación visual del recorrido.
