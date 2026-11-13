@@ -5,7 +5,6 @@ import { Reflector } from '@nestjs/core';
 import * as bcrypt from 'bcrypt';
 import { Repository, In } from 'typeorm';
 import request from 'supertest';
-import { AppModule } from '../src/app.module';
 import { User } from '../src/user/entities/user.entity';
 
 const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
@@ -32,6 +31,7 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
       );
     }
 
+    const { AppModule } = await import('../src/app.module');
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix('api');
