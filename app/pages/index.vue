@@ -98,7 +98,7 @@
         </header>
         <div class="studio-about__artist-list">
           <article v-for="(artist, index) in artistProfiles" :key="artist.slug" class="studio-about__artist">
-            <img :src="artist.image" :alt="Fotografía de ${artist.label}, equipo de KAGE TATTOO" loading="lazy" />
+            <img :src="artist.image" :alt="`Fotografía de ${artist.label}, equipo de KAGE TATTOO`" loading="lazy" />
             <div><p>Equipo KAGE TATTOO · 0{{ index + 1 }}</p><h3>{{ artist.label }}</h3><span>{{ artist.specialty }}</span></div>
             <span class="studio-about__artist-note">Equipo KAGE TATTOO</span>
           </article>
