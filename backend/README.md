@@ -8,10 +8,13 @@
 1. Desde la raíz, copia `.env.example` a `.env`.
 2. Ejecuta `docker compose up -d mysql`.
 3. Copia `backend/.env.example` a `backend/.env`.
-4. Desde `backend/`, ejecuta `npm install` y `npm run start:dev`.
+4. Desde `backend/`, ejecuta `npm ci` y `npm run start:dev`.
 5. TypeORM aplica automáticamente las migraciones pendientes al iniciar.
 
 MySQL queda en `127.0.0.1:3306`; base `inktatto_db`; usuario `inktatto_app`. Los datos persisten en el volumen Docker `inktatto_mysql_data`. Las contraseñas de ejemplo son solo para desarrollo local.
+
+## Variables obligatorias
+La API requiere `DB_HOST`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE` y `JWT_SECRET`. El secreto JWT debe ser aleatorio y tener al menos 32 caracteres. `PORT`, `DB_PORT` y `JWT_EXPIRATION` tienen valores predeterminados seguros. `CORS_ORIGIN` admite una lista separada por comas de orígenes HTTP/HTTPS; no uses `*` en producción.
 
 ## Migraciones
 - `npm run migration:show`: lista las migraciones.
@@ -32,6 +35,8 @@ Remove-Item Env:ADMIN_EMAIL, Env:ADMIN_FULL_NAME, Env:ADMIN_PASSWORD
 
 ## Pruebas
 ```powershell
+npm ci
+npm run lint
 npm run build
 npm test -- --runInBand
 npm run test:e2e -- --runInBand
