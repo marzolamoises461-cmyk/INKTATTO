@@ -24,6 +24,7 @@ describe('AuthService', () => {
   } as User;
 
   beforeEach(() => {
+    jest.clearAllMocks();
     users = {
       create: jest.fn().mockResolvedValue(account),
       findOneByEmail: jest.fn().mockResolvedValue(account),
