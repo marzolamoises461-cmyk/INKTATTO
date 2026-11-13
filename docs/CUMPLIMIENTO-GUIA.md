@@ -29,8 +29,11 @@ Además de la guía académica, se conectaron las solicitudes de citas a MySQL:
 - La estrategia consulta de nuevo el usuario en MySQL; una cuenta desactivada deja de poder usar el token.
 - El CRUD de usuarios y las operaciones administrativas de citas exigen JWT válido y rol `admin`.
 - En todos los entornos `synchronize` está desactivado; el esquema se cambia con migraciones.
+- La aplicación valida al arrancar las variables obligatorias de MySQL y exige un `JWT_SECRET` aleatorio de al menos 32 caracteres.
+- CORS solo admite los orígenes HTTP/HTTPS declarados en `CORS_ORIGIN`; no se permite el comodín `*`.
+- El DataSource de migraciones falla explícitamente si faltan las credenciales de conexión; no intenta conectarse con una contraseña vacía o una base predeterminada.
 - El primer administrador se crea mediante el comando local `npm run admin:create`, nunca mediante un endpoint público.
 
 ## Verificación pendiente
 
-Los cambios ya están en la rama `feature/guia-instructor-completa`. El workflow de GitHub Actions debe ejecutar compilación, pruebas y migración MySQL; el equipo local debe arrancar Docker/MySQL y validar el recorrido visual en el navegador. No se declara todavía una compilación o una conexión real aprobada hasta ver esos resultados.
+Los cambios están en la rama `feature/guia-instructor-completa`. GitHub Actions debe ejecutar lint, compilación, pruebas y migraciones MySQL; el equipo local debe validar el recorrido con su instalación de MySQL y revisar el recorrido visual en el navegador. No se declara todavía una prueba local de extremo a extremo aprobada hasta ver esos resultados.
