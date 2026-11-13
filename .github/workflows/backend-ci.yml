@@ -1,0 +1,51 @@
+name: Backend CI
+on:
+  push:
+    branches: [main, "feature/**"]
+  pull_request:
+    branches: [main]
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: test_root_password
+          MYSQL_DATABASE: inktatto_test
+          MYSQL_USER: inktatto_test
+          MYSQL_PASSWORD: test_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -ptest_root_password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm install
+      - name: Build
+        working-directory: backend
+        run: npm run build
+      - name: Unit tests
+        working-directory: backend
+        run: npm test -- --runInBand
+      - name: E2E tests
+        working-directory: backend
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USERNAME: inktatto_test
+          DB_PASSWORD: test_password
+          DB_DATABASE: inktatto_test
+          JWT_SECRET: test_only_secret_key_that_is_long_enough_123456
+          JWT_EXPIRATION: 3600
+        run: npm run test:e2e -- --runInBand

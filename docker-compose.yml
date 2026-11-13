@@ -1,0 +1,22 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: inktatto-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-inktatto_local_root}
+      MYSQL_DATABASE: ${DB_DATABASE:-inktatto_db}
+      MYSQL_USER: ${DB_USERNAME:-inktatto_app}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-inktatto_local_pass}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - inktatto_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-inktatto_local_root}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+volumes:
+  inktatto_mysql_data:

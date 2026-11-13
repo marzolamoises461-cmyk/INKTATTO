@@ -1,0 +1,27 @@
+import { MigrationInterface, QueryRunner } from 'typeorm';
+
+export class CreateUsers1762900000000 implements MigrationInterface {
+  name = 'CreateUsers1762900000000';
+
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INT NOT NULL AUTO_INCREMENT,
+        email VARCHAR(190) NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        full_name VARCHAR(120) NOT NULL,
+        is_active TINYINT(1) NOT NULL DEFAULT 1,
+        role ENUM('user', 'admin') NOT NULL DEFAULT 'user',
+        created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+        updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+          ON UPDATE CURRENT_TIMESTAMP(6),
+        PRIMARY KEY (id),
+        UNIQUE KEY UQ_users_email (email)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+  }
+
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query('DROP TABLE IF EXISTS users');
+  }
+}
