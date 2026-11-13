@@ -372,11 +372,6 @@
       </span>
     </footer>
 
-    <div class="book-controls" aria-label="Controles de páginas">
-      <button type="button" :disabled="activePageIndex === 0" aria-label="Página anterior" @click="turnPage(-1)">← <span>Anterior</span></button>
-      <span class="book-controls__count">{{ (activePageIndex + 1).toString().padStart(2, '0') }} <i>/</i> {{ pageCount.toString().padStart(2, '0') }}</span>
-      <button type="button" :disabled="activePageIndex === pageCount - 1" aria-label="Página siguiente" @click="turnPage(1)"><span>Siguiente</span> →</button>
-    </div>
   </main>
 </template>
 
