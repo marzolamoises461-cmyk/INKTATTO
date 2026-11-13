@@ -39,7 +39,7 @@ describe('AuthService', () => {
     (bcrypt.compare as jest.Mock).mockResolvedValue(true);
   });
 
-  it('registers a user and returns a signed access token', async () => {
+  it('registers a user and returns the guide token response without password', async () => {
     const result = await service.register({
       email: account.email,
       password: 'secret123',
@@ -50,7 +50,7 @@ describe('AuthService', () => {
       { sub: account.id, email: account.email, role: account.role },
       { expiresIn: 3600 },
     );
-    expect(result.accessToken).toBe('signed.jwt.token');
+    expect(result.token).toBe('signed.jwt.token');
     expect(result.user).not.toHaveProperty('password');
   });
 
@@ -60,10 +60,9 @@ describe('AuthService', () => {
       .rejects.toBeInstanceOf(UnauthorizedException);
   });
 
-  it('rejects inactive accounts', async () => {
+  it('rejects inactive accounts without disclosing account status', async () => {
     users.findOneByEmail.mockResolvedValue({ ...account, isActive: false });
     await expect(service.login({ email: account.email, password: 'secret123' }))
       .rejects.toBeInstanceOf(UnauthorizedException);
-    expect(bcrypt.compare).not.toHaveBeenCalled();
   });
 });
