@@ -1,72 +1,83 @@
 # Protocolo de pruebas API
 
-Iniciar MySQL, crear `inktatto_db`, copiar `backend/.env.example` a `backend/.env`, completar credenciales y ejecutar `npm install` + `npm run start:dev` desde `backend/`.
+## Preparación
 
-## Automatizadas
+1. Instala Node.js 20+ y MySQL 8+.
+2. Crea la base con el script `backend/database/001-create-users.sql`.
+3. Copia `backend/.env.example` como `backend/.env` y completa las credenciales.
+4. Desde `backend/`, ejecuta `npm install` y `npm run start:dev`.
+
+La API usa el prefijo `/api` y el puerto 3001 por defecto.
+
+## Pruebas automatizadas
+
+Desde `backend/`:
 
 ```bash
-cd backend
 npm test
 npm run test:e2e
 npm run build
 ```
 
-## Manuales con cURL
+## Rutas
 
-### 1. Registro
+| Método | Ruta | Acceso |
+|---|---|---|
+| POST | `/api/auth/register` | Público; siempre crea rol user |
+| POST | `/api/auth/login` | Público |
+| GET | `/api/auth/profile` | JWT |
+| GET | `/api/example/protected` | JWT |
+| GET | `/api/example/admin` | JWT + admin |
+| POST/GET | `/api/users` | JWT + admin |
+| GET/PATCH/DELETE | `/api/users/:id` | JWT + admin |
 
-```bash
-curl -i -X POST http://localhost:3001/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"cliente@ejemplo.com","password":"clave123","fullName":"Cliente de Prueba"}'
-```
+## Ejemplos cURL
 
-Debe responder `201` con `accessToken` y datos públicos del usuario; nunca debe incluir `password`.
-
-### 2. Login
-
-```bash
-curl -i -X POST http://localhost:3001/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"cliente@ejemplo.com","password":"clave123"}'
-```
-
-Debe responder `201`. Credenciales incorrectas: `401`.
-
-### 3. Perfil protegido
+### Registro
 
 ```bash
-curl -i http://localhost:3001/api/auth/profile \
-  -H "Authorization: Bearer PEGA_AQUI_EL_ACCESS_TOKEN"
+curl -i -X POST http://localhost:3001/api/auth/register -H "Content-Type: application/json" -d '{"email":"cliente@ejemplo.com","password":"clave123","fullName":"Cliente de Prueba"}'
 ```
 
-Sin token o con token inválido/expirado: `401`.
+Esperado: 201, token Bearer y usuario público sin password.
 
-### 4. Crear el primer administrador
+### Login
 
-Después de registrar la cuenta propietaria, promoverla directamente en MySQL desde una sesión administrativa:
+```bash
+curl -i -X POST http://localhost:3001/api/auth/login -H "Content-Type: application/json" -d '{"email":"cliente@ejemplo.com","password":"clave123"}'
+```
+
+Credenciales incorrectas: 401.
+
+### Perfil y rutas protegidas
+
+```bash
+curl -i http://localhost:3001/api/auth/profile -H "Authorization: Bearer TOKEN"
+curl -i http://localhost:3001/api/example/protected -H "Authorization: Bearer TOKEN"
+curl -i http://localhost:3001/api/example/admin -H "Authorization: Bearer TOKEN"
+```
+
+Sin token o token inválido: 401. Usuario normal en ruta admin: 403.
+
+### Primer administrador
+
+Después de registrar la cuenta propietaria, ejecuta desde una sesión MySQL
+administrativa y cambia el correo por el de esa cuenta:
 
 ```sql
 UPDATE users SET role = 'admin' WHERE email = 'propietario@ejemplo.com';
 ```
 
-Volver a iniciar sesión para obtener un JWT actualizado con `role: admin`.
+Cierra sesión e inicia sesión nuevamente para obtener un JWT con el rol actualizado.
+Nunca crees un endpoint público que permita elevar privilegios.
 
-### 5. CRUD de usuarios (solo admin)
+## Códigos esperados
 
-```bash
-# Crear
-curl -i -X POST http://localhost:3001/api/users -H "Authorization: Bearer ADMIN_TOKEN" -H "Content-Type: application/json" -d '{"email":"otro@ejemplo.com","password":"clave123","fullName":"Otro Usuario"}'
-# Listar
-curl -i http://localhost:3001/api/users -H "Authorization: Bearer ADMIN_TOKEN"
-# Consultar por id
-curl -i http://localhost:3001/api/users/1 -H "Authorization: Bearer ADMIN_TOKEN"
-# Actualizar
-curl -i -X PATCH http://localhost:3001/api/users/1 -H "Authorization: Bearer ADMIN_TOKEN" -H "Content-Type: application/json" -d '{"fullName":"Nombre Actualizado"}'
-# Eliminar
-curl -i -X DELETE http://localhost:3001/api/users/2 -H "Authorization: Bearer ADMIN_TOKEN"
-```
+- 400: DTO inválido, propiedades adicionales o id no numérico.
+- 401: sin JWT, JWT inválido/expirado o credenciales incorrectas.
+- 403: JWT válido sin rol suficiente.
+- 404: usuario inexistente.
+- 409: correo duplicado.
+- 204: eliminación exitosa.
 
-Token válido de usuario normal contra `/api/users`: `403`. Sin token: `401`. Email duplicado: `409`. DTO inválido, campo extra o id no numérico: `400`. Usuario inexistente: `404`. Borrado exitoso: `204`.
-
-> Usar una base de pruebas y datos ficticios. No compartir tokens, contraseñas ni el archivo `.env`.
+Usa datos ficticios y una base de pruebas. No compartas tokens ni archivos `.env`.
