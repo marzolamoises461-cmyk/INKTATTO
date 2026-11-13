@@ -97,7 +97,7 @@
             <div><dt>Zona</dt><dd>{{ form.bodyArea || 'Por elegir' }}</dd></div>
             <div><dt>Tamaño</dt><dd>{{ form.size || 'Por elegir' }}</dd></div>
           </dl>
-          <p class="booking-summary__note">La solicitud queda guardada en este dispositivo. Para enviarla al estudio, contacta directamente por correo.</p>
+          <p class="booking-summary__note">Al enviar la solicitud, se guarda en la base de datos del estudio. El equipo revisará tu petición y confirmará la disponibilidad.</p>
           <NuxtLink class="booking-contact-link" to="/contact">Contactar con el estudio ↗</NuxtLink>
         </aside>
       </div>
