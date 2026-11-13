@@ -9,8 +9,8 @@
           <NuxtLink class="studio-button about-hero__cta" to="/booking">Conocer el proceso de reserva <span>↗</span></NuxtLink>
         </div>
         <figure class="about-image">
-          <img class="studio-image" :src="fujiImage" alt="Samurái bajo los cerezos, frente al monte Fuji" />
-          <figcaption>KAGE / Japón tradicional, mirada contemporánea</figcaption>
+          <img class="studio-image" src="https://images.stockcake.com/public/f/0/5/f051293e-c5a8-467b-b11a-80b54846686b_large/japanese-dragon-tattoo-stockcake.jpg" alt="Tatuaje japonés irezumi de un dragón verde y rojo entre olas y flores de sakura" />
+          <figcaption>RYŪ DEL CREPÚSCULO / Irezumi japonés · Imagen: StockCake</figcaption>
         </figure>
       </header>
 
@@ -89,7 +89,7 @@ import fujiImage from '../assets/ChatGPT Image 10 sept 2026, 15_29_35.png'
 
 .about-image {
   position: relative;
-  height: clamp(400px, 56vw, 650px);
+  height: clamp(400px, 48vw, 620px);
   margin: 0;
   overflow: hidden;
   background: var(--studio-panel-light);
