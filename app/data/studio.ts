@@ -116,7 +116,7 @@ export const designs: TattooDesign[] = [
 ]
 
 export const artistProfiles = [
-  { slug: 'artista-01', label: 'Artista 01', specialty: 'Irezumi y dragones', experience: 'Trayectoria por confirmar', image: designs[0]!.image },
-  { slug: 'artista-02', label: 'Artista 02', specialty: 'Máscaras y blackwork', experience: 'Trayectoria por confirmar', image: designs[2]!.image },
-  { slug: 'artista-03', label: 'Artista 03', specialty: 'Koi y motivos florales', experience: 'Trayectoria por confirmar', image: designs[3]!.image },
+  { slug: 'faver', label: 'Faver', specialty: 'Tatuador principal', experience: 'Creatividad, precisión y pasión en cada diseño.', image: '/images/team/faver.jpg' },
+  { slug: 'ernestor', label: 'Ernestor', specialty: 'Tatuador artístico', experience: 'Ideas únicas para un tatuaje inolvidable.', image: '/images/team/ernestor.jpg' },
+  { slug: 'jorge', label: 'Jorge', specialty: 'Tatuador especialista', experience: 'Tu historia, nuestro arte.', image: '/images/team/jorge.jpg' },
 ]
