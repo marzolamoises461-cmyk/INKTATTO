@@ -1,4 +1,4 @@
-import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
+import { ClassSerializerInterceptor, INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Reflector } from '@nestjs/core';
@@ -11,7 +11,7 @@ import { User } from '../src/user/entities/user.entity';
 const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
 
 (runDatabaseE2e ? describe : describe.skip)('API real con MySQL (integration e2e)', () => {
-  let app: Awaited<ReturnType<import('@nestjs/core').INestApplication['init']>> extends never ? never : import('@nestjs/common').INestApplication;
+  let app: INestApplication;
   let users: Repository<User>;
   let customerToken = '';
   let secondCustomerToken = '';
