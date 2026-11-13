@@ -53,7 +53,7 @@ En el entorno local del desarrollador se reportaron correctamente:
 
 Se añadió `backend/test/database.e2e-spec.ts`, que levanta el módulo NestJS real y verifica contra MySQL autenticación, JWT, serialización, roles, reservas y permisos de propietario. Está protegida por dos condiciones: `RUN_DB_E2E=true` y nombre de base terminado en `_test`. La CI usa el servicio MySQL temporal `inktatto_test`; la suite no se activa por defecto en el equipo local.
 
-GitHub Actions ejecutó correctamente ambos trabajos (backend y frontend) en el commit validado `5be380cba8e63b1f8b141b1746c17a8d0a63007d`: lint, compilación NestJS, pruebas unitarias, migraciones MySQL y compilación Nuxt finalizaron en verde. En CI se aprobaron 19 pruebas unitarias y 8 pruebas E2E (5 de integración contra MySQL real y 3 de contrato HTTP). La base temporal `inktatto_test` recibió las dos migraciones antes de ejecutar las pruebas.
+El workflow `.github/workflows/backend-ci.yml` está configurado para ejecutarse al hacer push a `main` o a ramas `feature/**`, y también al abrir/actualizar un pull request hacia `main`. Incluye lint, compilación NestJS, pruebas unitarias, migraciones en un servicio MySQL temporal, pruebas E2E con MySQL y compilación Nuxt. La configuración del workflow está en el repositorio; no se da por aprobada la ejecución del commit actual hasta que GitHub Actions muestre ambos trabajos en verde.
 
 El código de las páginas de acceso, perfil y reserva utiliza `useAuth()` y el `apiBase` configurable mediante `NUXT_PUBLIC_API_BASE`; el flujo de reservas crea y consulta datos mediante la API.
 
