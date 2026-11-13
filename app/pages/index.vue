@@ -306,6 +306,21 @@
       <section class="profile-subsection"><div class="screen-heading"><div><p class="eyebrow"><span></span> Colección personal</p><h3>Diseños <em>favoritos.</em></h3></div><a class="text-link" href="#galeria">Explorar trabajos <span>↗</span></a></div>
         <div v-if="favoriteDesigns.length" class="favorite-grid"><button v-for="design in favoriteDesigns" :key="design.slug" type="button" @click="selectDesign(design)"><img :src="design.image" :alt="design.imageAlt" loading="lazy" /><span>{{ design.category }}</span><strong>{{ design.name }}</strong></button></div><p v-else class="empty-message">Guarda un diseño desde la galería y aparecerá aquí.</p>
       </section>
+      <section v-if="isAdmin" class="profile-subsection admin-panel">
+        <div class="screen-heading"><div><p class="eyebrow"><span></span> Zona privada</p><h3>Administración <em>Kage.</em></h3></div><button class="button button--outline" type="button" :disabled="adminLoading" @click="loadAdminDashboard">{{ adminLoading ? 'Actualizando…' : 'Actualizar datos' }}</button></div>
+        <p v-if="adminMessage" class="screen-notice" role="status">{{ adminMessage }}</p>
+        <h4>Solicitudes recibidas · {{ adminBookings.length }}</h4>
+        <article v-for="request in adminBookings" :key="request.id" class="saved-booking">
+          <div><strong>#{{ request.id }} · {{ request.user?.fullName || 'Cliente' }} · {{ request.bodyArea }}</strong><span>{{ request.user?.email }} · {{ displayDate(request.date) }} · {{ request.time }} · {{ request.status === 'pending' ? 'Pendiente' : request.status === 'confirmed' ? 'Confirmada' : 'Cancelada' }}</span><span>{{ request.artist }} · {{ request.size }} · {{ request.idea }}</span></div>
+          <div class="cancel-actions" v-if="request.status === 'pending'"><button type="button" @click="updateAdminBooking(request.id, 'confirmed')">Confirmar</button><button type="button" @click="updateAdminBooking(request.id, 'cancelled')">Cancelar</button></div>
+        </article>
+        <p v-if="!adminBookings.length" class="empty-message">Todavía no hay solicitudes registradas.</p>
+        <h4>Clientes registrados · {{ adminUsers.length }}</h4>
+        <article v-for="account in adminUsers" :key="account.id" class="saved-booking">
+          <div><strong>{{ account.fullName }}</strong><span>{{ account.email }} · {{ account.role === 'admin' ? 'Administrador' : 'Cliente' }} · {{ account.isActive ? 'Cuenta activa' : 'Cuenta desactivada' }}</span></div>
+          <button v-if="account.id !== currentUser?.id" type="button" @click="toggleUserActive(account)">{{ account.isActive ? 'Desactivar cuenta' : 'Activar cuenta' }}</button>
+        </article>
+      </section>
     </section>
 
     <section id="contacto" v-show="activePage === 'contacto'" class="home-screen contact-screen page-screen">
@@ -468,6 +483,10 @@ const authToken = ref('')
 const currentUser = ref<ApiUser | null>(null)
 const isAuthenticated = computed(() => Boolean(authToken.value && currentUser.value))
 const isAdmin = computed(() => currentUser.value?.role === 'admin')
+const adminBookings = ref<(ApiBooking & { user?: ApiUser })[]>([])
+const adminUsers = ref<(ApiUser & { isActive: boolean })[]>([])
+const adminMessage = ref('')
+const adminLoading = ref(false)
 const runtimeConfig = useRuntimeConfig()
 const apiBase = String(runtimeConfig.public.apiBase).replace(/\/$/, '')
 const timeSlots = ['10:00', '12:00', '15:00', '17:00']
@@ -568,6 +587,7 @@ async function loadAccountData() {
     profileDraft.email = profile.value.email
     const remoteBookings = await apiRequest<ApiBooking[]>('/bookings/mine')
     bookings.value = remoteBookings.map(mapApiBooking)
+    if (isAdmin.value) await loadAdminDashboard()
     profileMessage.value = ''
   } catch (error) {
     authToken.value = ''
@@ -737,6 +757,39 @@ async function submitLogin() {
   } catch (error) {
     loginMessage.value = error instanceof Error ? error.message : 'No se pudo iniciar sesión.'
   } finally { isSubmitting.value = false }
+}
+
+
+async function loadAdminDashboard() {
+  if (!isAdmin.value) return
+  adminLoading.value = true
+  adminMessage.value = ''
+  try {
+    const [requests, accounts] = await Promise.all([
+      apiRequest<(ApiBooking & { user?: ApiUser })[]>('/bookings'),
+      apiRequest<(ApiUser & { isActive: boolean })[]>('/users'),
+    ])
+    adminBookings.value = requests
+    adminUsers.value = accounts
+  } catch (error) {
+    adminMessage.value = error instanceof Error ? `No se pudo cargar la administración: ${error.message}` : 'No se pudo cargar la administración.'
+  } finally { adminLoading.value = false }
+}
+
+async function updateAdminBooking(id: number, status: 'confirmed' | 'cancelled') {
+  try {
+    await apiRequest<ApiBooking>(`/bookings/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) })
+    await loadAdminDashboard()
+    adminMessage.value = status === 'confirmed' ? 'La solicitud quedó confirmada.' : 'La solicitud quedó cancelada.'
+  } catch (error) { adminMessage.value = error instanceof Error ? error.message : 'No se pudo actualizar la solicitud.' }
+}
+
+async function toggleUserActive(account: ApiUser & { isActive: boolean }) {
+  try {
+    await apiRequest<ApiUser & { isActive: boolean }>(`/users/${account.id}`, { method: 'PATCH', body: JSON.stringify({ isActive: !account.isActive }) })
+    await loadAdminDashboard()
+    adminMessage.value = account.isActive ? 'Cuenta desactivada.' : 'Cuenta activada.'
+  } catch (error) { adminMessage.value = error instanceof Error ? error.message : 'No se pudo actualizar la cuenta.' }
 }
 
 function logout() {
