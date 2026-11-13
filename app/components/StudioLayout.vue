@@ -39,7 +39,9 @@
         <NuxtLink to="/artists">Equipo</NuxtLink>
         <NuxtLink to="/booking">Reserva</NuxtLink>
         <NuxtLink to="/contact">Contacto</NuxtLink>
-        <NuxtLink to="/login">Iniciar sesión</NuxtLink>
+        <NuxtLink v-if="!user" to="/login">Iniciar sesión</NuxtLink>
+        <NuxtLink v-if="user" to="/profile">Mi cuenta</NuxtLink>
+        <NuxtLink v-if="user?.role === 'admin'" to="/admin">Administración</NuxtLink>
       </div>
     </footer>
   </div>
