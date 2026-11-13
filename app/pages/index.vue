@@ -243,7 +243,7 @@
             <select v-model="booking.artist" required><option disabled value="">Selecciona un perfil</option><option v-for="artist in artistProfiles" :key="artist.slug" :value="artist.slug">{{ artist.label }} · {{ artist.specialty }}</option></select>
           </label>
           <label class="screen-field">Fecha preferida *<input v-model="booking.date" type="date" :min="minDate" required /></label>
-          <fieldset class="screen-field booking-time"><legend>Horario preferido *</legend><div class="booking-times"><label v-for="time in timeSlots" :key="time" :class="{ 'is-active': booking.time === time }"><input v-model="booking.time" type="radio" name="booking-time" :value="time" required />{{ time }}</label></div><small>Horarios orientativos; sujetos a confirmación.</small></fieldset>
+          <label class="screen-field">Horario preferido *<select v-model="booking.time" required><option disabled value="">Selecciona una hora</option><option v-for="time in timeSlots" :key="time" :value="time">{{ formatBookingTime(time) }}</option></select><small>Selecciona una hora entre las 9:00 AM y las 5:00 PM.</small></label>
           <label class="screen-field">Zona del cuerpo *<select v-model="booking.bodyArea" required><option disabled value="">Selecciona una zona</option><option v-for="area in bodyAreas" :key="area">{{ area }}</option></select></label>
           <label class="screen-field">Tamaño aproximado *<select v-model="booking.size" required><option disabled value="">Selecciona el tamaño</option><option v-for="size in sizes" :key="size">{{ size }}</option></select></label>
           <label class="screen-field screen-field--full">Describe tu idea *<textarea v-model.trim="booking.idea" minlength="10" maxlength="1200" required placeholder="Motivo, referencias o significado que te gustaría explorar..." /><small>{{ booking.idea.length }} / 1200</small></label>
@@ -489,7 +489,13 @@ const adminMessage = ref('')
 const adminLoading = ref(false)
 const runtimeConfig = useRuntimeConfig()
 const apiBase = String(runtimeConfig.public.apiBase).replace(/\/$/, '')
-const timeSlots = ['10:00', '12:00', '15:00', '17:00']
+const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00']
+const formatBookingTime = (time: string) => {
+  const [hours, minutes] = time.split(':').map(Number)
+  const suffix = hours < 12 ? 'AM' : 'PM'
+  const displayHour = hours % 12 || 12
+  return `${displayHour}:${String(minutes).padStart(2, '0')} ${suffix}`
+}
 const bodyAreas = ['Brazo', 'Espalda', 'Pierna', 'Hombro', 'Pecho', 'Costillas', 'Otra zona']
 const sizes = ['Pequeño · hasta 8 cm', 'Mediano · 8–18 cm', 'Grande · más de 18 cm', 'Por definir en consulta']
 const booking = reactive({
