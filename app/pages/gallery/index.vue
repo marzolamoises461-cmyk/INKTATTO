@@ -161,8 +161,8 @@ function toggle(slug: string) {
 
 .gallery-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 32px 20px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px 18px;
 }
 
 .gallery-card {
@@ -181,7 +181,7 @@ function toggle(slug: string) {
 .gallery-card__image-link {
   position: relative;
   display: block;
-  height: clamp(240px, 28vw, 380px);
+  height: clamp(250px, 25vw, 350px);
   overflow: hidden;
   background: var(--studio-panel-light);
 }
