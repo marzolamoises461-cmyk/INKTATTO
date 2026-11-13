@@ -94,13 +94,13 @@
       <section class="studio-about__section studio-about__artists" aria-labelledby="studio-about-artists">
         <header class="studio-about__heading">
           <div><p class="eyebrow"><span></span> Personas detrás de la tinta</p><h2 id="studio-about-artists">Nuestros<br /><em>artistas.</em></h2></div>
-          <p>Una primera referencia de los perfiles disponibles. Los nombres y fotografías reales del equipo están pendientes de publicación.</p>
+          <p>Conoce a las personas que dan vida al arte de KAGE TATTOO.</p>
         </header>
         <div class="studio-about__artist-list">
           <article v-for="(artist, index) in artistProfiles" :key="artist.slug" class="studio-about__artist">
-            <img :src="artist.image" :alt="`Imagen de referencia para ${artist.label}`" loading="lazy" />
-            <div><p>Perfil de referencia · 0{{ index + 1 }}</p><h3>{{ artist.label }}</h3><span>{{ artist.specialty }}</span></div>
-            <span class="studio-about__artist-note">Presentación por confirmar</span>
+            <img :src="artist.image" :alt="Fotografía de ${artist.label}, equipo de KAGE TATTOO" loading="lazy" />
+            <div><p>Equipo KAGE TATTOO · 0{{ index + 1 }}</p><h3>{{ artist.label }}</h3><span>{{ artist.specialty }}</span></div>
+            <span class="studio-about__artist-note">Equipo KAGE TATTOO</span>
           </article>
         </div>
         <a class="text-link" href="#equipo">Ver la sección Equipo <span>↗</span></a>
@@ -261,8 +261,8 @@
     <section id="equipo" v-show="activePage === 'equipo'" class="home-screen artists-screen page-screen">
       <p class="eyebrow"><span></span> Personas detrás de la tinta</p>
       <h2>El equipo<br /><em>Kage.</em></h2>
-      <p class="screen-intro">Perfiles de muestra con especialidades de referencia. Los nombres, fotos y experiencia reales están pendientes de confirmar.</p>
-      <p class="screen-notice">No se atribuyen estos diseños ni datos a personas reales del estudio.</p>
+      <p class="screen-intro">Conoce a Faver, Ernestor y Jorge: el equipo detrás de cada diseño.</p>
+      
       <div class="artist-grid">
         <article v-for="artist in artistProfiles" :key="artist.slug" class="artist-card">
           <img :src="artist.image" :alt="`Imagen de referencia para ${artist.label}`" loading="lazy" />
@@ -275,7 +275,7 @@
       <section v-if="selectedArtist" class="artist-detail">
         <button class="screen-back" type="button" @click="selectedArtist = null">← Cerrar perfil</button>
         <h3>{{ selectedArtist.label }} <em>/ {{ selectedArtist.specialty }}</em></h3>
-        <p>Perfil de muestra: la biografía y trayectoria deben completarse con información autorizada del equipo.</p>
+        <p>{{ selectedArtist.experience }}</p>
         <p>Los trabajos de referencia de esta especialidad están en la galería. <a href="#galeria">Explorar diseños ↗</a></p>
         <a class="button button--solid" href="#reserva" @click="booking.artist = selectedArtist.slug">Solicitar consulta <span>↗</span></a>
       </section>
