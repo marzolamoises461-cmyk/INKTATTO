@@ -38,7 +38,6 @@
       <div class="hero__footer">
         <p>彫 <span>/</span> Hori</p>
         <p class="scroll-cue"><span></span> Pasa a la siguiente página</p>
-        <p>01 <span>/</span> {{ pageCount.toString().padStart(2, '0') }}</p>
       </div>
     </section>
 
