@@ -1,0 +1,9 @@
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { StaffMember } from './entities/staff-member.entity';
+import { StaffController } from './staff.controller';
+import { StaffService } from './staff.service';
+@Module({ imports: [TypeOrmModule.forFeature([StaffMember])], controllers: [StaffController], providers: [StaffService, JwtAuthGuard, RolesGuard], exports: [StaffService] })
+export class StaffModule {}
