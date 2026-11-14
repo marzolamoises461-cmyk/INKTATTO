@@ -16,139 +16,136 @@
         @error="audioError = true"
       />
 
-      <button
-        class="kage-music-toggle"
-        type="button"
-        :aria-label="isPlaying ? 'Pausar música' : 'Activar música de fondo'"
-        @click="toggleMusic"
-      >
-        <span class="kage-music-icon" aria-hidden="true">{{ isPlaying ? '♫' : '♪' }}</span>
-        <span>{{ isPlaying ? 'MÚSICA: ON' : 'ACTIVAR MÚSICA' }}</span>
-      </button>
-      <p v-if="audioError" class="kage-music-error" role="status">
-        No se pudo cargar la canción. Actualiza la página e inténtalo de nuevo.
-      </p>
+      <div v-if="showMusicPrompt" class="kage-music-overlay" role="dialog" aria-modal="true" aria-labelledby="kage-music-title">
+        <div class="kage-music-card">
+          <div class="kage-music-note" aria-hidden="true">♫</div>
+          <p class="kage-music-eyebrow">KAGE TATTOO STUDIO</p>
+          <h2 id="kage-music-title">¿Activamos la música?</h2>
+          <p class="kage-music-description">Acompaña tu visita con “Lento” – Koddy G.</p>
+          <button class="kage-music-accept" type="button" @click="enableMusic">
+            ACTIVAR MÚSICA
+          </button>
+          <button class="kage-music-decline" type="button" @click="showMusicPrompt = false">
+            CONTINUAR SIN MÚSICA
+          </button>
+          <p v-if="audioError" class="kage-music-error" role="alert">
+            No se pudo cargar la canción. Inténtalo de nuevo.
+          </p>
+        </div>
+      </div>
     </ClientOnly>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 
 const audioSrc = '/Lento%20-%20Koddy%20G%20(Video%20Oficial).mp3'
 const backgroundAudio = ref<HTMLAudioElement | null>(null)
 const isPlaying = ref(false)
 const audioError = ref(false)
+const showMusicPrompt = ref(false)
 
-const toggleMusic = async () => {
+const enableMusic = async () => {
   const audio = backgroundAudio.value
   if (!audio) return
 
   audioError.value = false
-  if (!audio.paused) {
-    audio.pause()
-    return
-  }
-
   try {
     audio.volume = 0.45
     await audio.play()
+    showMusicPrompt.value = false
   } catch (error) {
     console.error('KAGE background music playback failed:', error)
     audioError.value = true
   }
 }
 
-let retryPlayback: ((event: Event) => void) | undefined
-
 onMounted(() => {
-  const audio = backgroundAudio.value
-  if (!audio) return
-
-  audio.volume = 0.45
-
-  const removeInteractionListeners = () => {
-    window.removeEventListener('pointerdown', startMusicFromInteraction)
-    window.removeEventListener('keydown', startMusicFromInteraction)
-    window.removeEventListener('click', startMusicFromInteraction)
-    retryPlayback = undefined
-  }
-
-  const startMusicFromInteraction = async (event: Event) => {
-    const target = event.target
-    if (target instanceof Element && target.closest('.kage-music-toggle')) return
-    if (!audio.paused) {
-      removeInteractionListeners()
-      return
-    }
-
-    try {
-      audio.volume = 0.45
-      await audio.play()
-      removeInteractionListeners()
-    } catch (error) {
-      // Se conserva el intento para la siguiente interacción del visitante.
-      console.warn('KAGE music is waiting for another user interaction:', error)
-    }
-  }
-
-  retryPlayback = startMusicFromInteraction
-  // Algunos navegadores bloquean el sonido al entrar. Se inicia en el
-  // primer toque, clic o tecla del visitante y continúa en bucle.
-  void audio.play().then(removeInteractionListeners).catch(() => {
-    window.addEventListener('pointerdown', startMusicFromInteraction)
-    window.addEventListener('keydown', startMusicFromInteraction)
-    window.addEventListener('click', startMusicFromInteraction)
-  })
-})
-
-onBeforeUnmount(() => {
-  if (retryPlayback) {
-    window.removeEventListener('pointerdown', retryPlayback)
-    window.removeEventListener('keydown', retryPlayback)
-    window.removeEventListener('click', retryPlayback)
-  }
+  // Mostrar la invitación al entrar. El navegador exige que el visitante
+  // pulse el botón; no existe un permiso nativo para audio de fondo.
+  showMusicPrompt.value = true
 })
 </script>
 
 <style>
-.kage-music-toggle {
+.kage-music-overlay {
   position: fixed;
-  right: 18px;
-  bottom: 18px;
-  z-index: 99999;
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  padding: 12px 16px;
-  border: 1px solid rgba(255, 0, 0, 0.75);
-  border-radius: 999px;
-  background: rgba(12, 12, 12, 0.94);
+  inset: 0;
+  z-index: 100000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(7px);
+}
+.kage-music-card {
+  width: min(100%, 390px);
+  padding: 34px 28px 26px;
+  border: 1px solid rgba(255, 0, 0, 0.65);
+  border-radius: 18px;
+  background: linear-gradient(145deg, #191919, #080808);
   color: #fff;
-  font: 700 11px/1 Arial, sans-serif;
+  text-align: center;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.65), 0 0 28px rgba(255, 0, 0, 0.12);
+}
+.kage-music-note {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 15px;
+  border: 1px solid #ff0000;
+  border-radius: 50%;
+  color: #ff0000;
+  font-size: 30px;
+}
+.kage-music-eyebrow {
+  margin: 0 0 9px;
+  color: #ff0000;
+  font: 800 10px/1.4 Arial, sans-serif;
+  letter-spacing: 3px;
+}
+.kage-music-card h2 {
+  margin: 0 0 10px;
+  color: #fff;
+  font: 800 25px/1.2 Arial, sans-serif;
+}
+.kage-music-description {
+  margin: 0 0 23px;
+  color: #c9c9c9;
+  font: 14px/1.5 Arial, sans-serif;
+}
+.kage-music-accept {
+  width: 100%;
+  padding: 14px 18px;
+  border: 1px solid #ff0000;
+  border-radius: 8px;
+  background: #ff0000;
+  color: #fff;
+  font: 800 12px/1 Arial, sans-serif;
+  letter-spacing: 1.2px;
+  cursor: pointer;
+}
+.kage-music-accept:hover {
+  background: #d90000;
+}
+.kage-music-decline {
+  margin-top: 14px;
+  padding: 8px 12px;
+  border: 0;
+  background: transparent;
+  color: #aaa;
+  font: 600 10px/1.4 Arial, sans-serif;
   letter-spacing: 1px;
   cursor: pointer;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
 }
-.kage-music-toggle:hover {
-  background: #1d1d1d;
-  border-color: #ff0000;
-}
-.kage-music-icon {
-  color: #ff0000;
-  font-size: 20px;
-  line-height: 1;
+.kage-music-decline:hover {
+  color: #fff;
 }
 .kage-music-error {
-  position: fixed;
-  right: 18px;
-  bottom: 68px;
-  z-index: 99999;
-  max-width: 280px;
-  padding: 10px 12px;
-  border-radius: 8px;
-  background: #171717;
-  color: #fff;
+  margin: 14px 0 0;
+  color: #ff7777;
   font: 12px/1.4 Arial, sans-serif;
 }
 </style>
