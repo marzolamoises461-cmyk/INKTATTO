@@ -39,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 
 type MusicTrack = {
   id: string
@@ -68,10 +68,11 @@ const playIndex = async (index: number) => {
   if (!tracks.value.length) return
   currentIndex.value = (index + tracks.value.length) % tracks.value.length
   audioError.value = false
-  await new Promise(resolve => setTimeout(resolve, 0))
+  await nextTick()
   const audio = backgroundAudio.value
   if (!audio) return
   audio.volume = volume.value
+  audio.load()
   try {
     await audio.play()
     isPlaying.value = true
