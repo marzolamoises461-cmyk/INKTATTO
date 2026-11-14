@@ -1087,7 +1087,7 @@ h1 em, h2 em, blockquote em { color: var(--red); font-style: italic; }
 
 /* Paleta KAGE: negro profundo + vino, cobre y violeta discreto */
 :root {
-  --red: #a92f43;
+  --red: #c4475b;
   --kage-copper: #d18a55;
   --kage-violet: #76639a;
   --kage-silver: #b8bcc2;
