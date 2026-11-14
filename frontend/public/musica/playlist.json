@@ -1,3 +1,11 @@
 {
-  "tracks": []
+  "tracks": [
+    {
+      "id": "sweet-dreams-instrumental",
+      "title": "Sweet Dreams Instrumental",
+      "artist": "Eurythmics",
+      "category": "Dark",
+      "file": "/musica/Eurythmics%20-%20Sweet%20Dreams%20Instrumental.mp3"
+    }
+  ]
 }
