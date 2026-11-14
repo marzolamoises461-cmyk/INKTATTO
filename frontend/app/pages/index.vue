@@ -96,7 +96,7 @@
           <p>Conoce a las personas que dan vida al arte de KAGE TATTOO.</p>
         </header>
         <div class="studio-about__artist-list">
-          <article v-for="(artist, index) in artistProfiles" :key="artist.slug" class="studio-about__artist">
+          <article v-for="(artist, index) in teamProfiles" :key="artist.slug" class="studio-about__artist">
             <img :src="artist.image" :alt="`Fotografía de ${artist.label}, equipo de KAGE TATTOO`" loading="lazy" />
             <div><p>Equipo KAGE TATTOO · 0{{ index + 1 }}</p><h3>{{ artist.label }}</h3><span>{{ artist.specialty }}</span></div>
             <span class="studio-about__artist-note">Equipo KAGE TATTOO</span>
@@ -197,6 +197,7 @@
               <div><dt>Estilo artístico</dt><dd>{{ selectedDesign.style }}</dd></div>
               <div><dt>Zona recomendada</dt><dd>{{ selectedDesign.bodyArea }}</dd></div>
               <div><dt>Tiempo estimado</dt><dd>{{ selectedDesign.duration }}</dd></div>
+              <div v-if="'price' in selectedDesign && selectedDesign.price"><dt>Precio orientativo</dt><dd>{{ formatMoney(selectedDesign.price) }}</dd></div>
             </dl>
             <div class="inline-actions">
               <button class="button button--outline" type="button" @click="toggleFavorite(selectedDesign.slug)">{{ favorites.includes(selectedDesign.slug) ? '♥ En favoritos' : '♡ Guardar diseño' }}</button>
@@ -222,7 +223,7 @@
             <span>{{ design.category }}</span>
           </button>
           <div class="home-design-card__caption">
-            <button class="home-design-card__title" type="button" @click="selectDesign(design)">{{ design.name }}</button>
+            <div><button class="home-design-card__title" type="button" @click="selectDesign(design)">{{ design.name }}</button><small v-if="'price' in design && design.price" class="design-price">{{ formatMoney(design.price) }}</small></div>
             <button class="favorite-button" type="button" :aria-label="favorites.includes(design.slug) ? `Quitar ${design.name} de favoritos` : `Guardar ${design.name} en favoritos`" :aria-pressed="favorites.includes(design.slug)" @click="toggleFavorite(design.slug)">{{ favorites.includes(design.slug) ? '♥' : '♡' }}</button>
           </div>
         </article>
@@ -239,7 +240,7 @@
           <label class="screen-field">Tu nombre *<input v-model.trim="booking.name" autocomplete="name" required maxlength="100" /></label>
           <label class="screen-field">Correo electrónico *<input v-model.trim="booking.email" type="email" autocomplete="email" required maxlength="254" /></label>
           <label class="screen-field">Tatuador/a *
-            <select v-model="booking.artist" required><option disabled value="">Selecciona un perfil</option><option v-for="artist in artistProfiles" :key="artist.slug" :value="artist.slug">{{ artist.label }} · {{ artist.specialty }}</option></select>
+            <select v-model="booking.artist" required><option disabled value="">Selecciona un perfil</option><option v-for="artist in teamProfiles" :key="artist.slug" :value="artist.slug">{{ artist.label }} · {{ artist.specialty }}</option></select>
           </label>
           <label class="screen-field">Fecha preferida *<input v-model="booking.date" type="date" :min="minDate" required /></label>
           <label class="screen-field">Horario preferido *<select v-model="booking.time" required><option disabled value="">Selecciona una hora</option><option v-for="time in timeSlots" :key="time" :value="time">{{ formatBookingTime(time) }}</option></select><small>Selecciona una hora entre las 9:00 AM y las 5:00 PM.</small></label>
@@ -263,7 +264,7 @@
       <p class="screen-intro">Conoce a Faver, Ernestor y Jorge: el equipo detrás de cada diseño.</p>
       
       <div class="artist-grid">
-        <article v-for="artist in artistProfiles" :key="artist.slug" class="artist-card">
+        <article v-for="artist in teamProfiles" :key="artist.slug" class="artist-card">
           <img :src="artist.image" :alt="`Imagen de referencia para ${artist.label}`" loading="lazy" />
           <div><p>{{ artist.specialty }}</p><h3>{{ artist.label }}</h3><span>{{ artist.experience }}</span>
             <button class="button button--outline" type="button" @click="selectedArtist = artist">Consultar perfil <span>↗</span></button>
@@ -516,7 +517,11 @@ const editingTattooId = ref<number | null>(null)
 const editingStaffId = ref<number | null>(null)
 const tattooDraft = reactive({ name: '', category: '', style: '', price: 0, imageUrl: '', description: '', review: '' })
 const staffDraft = reactive({ name: '', specialty: '', bio: '', imageUrl: '' })
-const remoteDesigns = ref<TattooDesign[]>([])
+const remoteDesigns = ref<(TattooDesign & { price?: number })[]>([])
+const remoteStaff = ref<AdminStaff[]>([])
+const teamProfiles = computed(() => remoteStaff.value.length
+  ? remoteStaff.value.filter(member => member.isActive).map(member => ({ slug: `staff-${member.id}`, label: member.name, specialty: member.specialty, experience: member.bio || 'Equipo KAGE TATTOO', image: member.imageUrl || '/images/team/faver.webp' }))
+  : artistProfiles)
 const runtimeConfig = useRuntimeConfig()
 const apiBase = String(runtimeConfig.public.apiBase).replace(/\/$/, '')
 const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00']
@@ -556,7 +561,7 @@ const today = new Date()
 const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 const upcomingBookings = computed(() => bookings.value.filter((request) => request.date >= todayKey && (request.status === 'Solicitud pendiente' || request.status === 'Solicitud confirmada')))
 const historyBookings = computed(() => bookings.value.filter((request) => request.date < todayKey || request.status === 'Solicitud cancelada'))
-const bookingArtist = computed(() => artistProfiles.find((artist) => artist.slug === booking.artist)?.label ?? '')
+const bookingArtist = computed(() => teamProfiles.value.find((artist) => artist.slug === booking.artist)?.label ?? '')
 const bookingDate = computed(() => booking.date
   ? new Intl.DateTimeFormat('es-ES', { dateStyle: 'long' }).format(new Date(`${booking.date}T12:00:00`))
   : '')
@@ -750,7 +755,7 @@ function displayDate(value: string) {
 }
 
 function artistName(slug: string) {
-  return artistProfiles.find((artist) => artist.slug === slug)?.label ?? 'Artista por confirmar'
+  return teamProfiles.value.find((artist) => artist.slug === slug)?.label ?? 'Artista por confirmar'
 }
 
 function sendContact() {
@@ -808,12 +813,13 @@ async function loadAdminDashboard() {
 
 async function loadPublicCatalog() {
   try {
-    const items = await apiRequest<AdminTattoo[]>('/catalog')
+    const [items, staff] = await Promise.all([apiRequest<AdminTattoo[]>('/catalog'), apiRequest<AdminStaff[]>('/staff')])
+    remoteStaff.value = staff
     remoteDesigns.value = items.map((item) => ({
       slug: `remote-${item.id}`, name: item.name, category: item.category,
       image: item.imageUrl, imageAlt: item.name, description: item.description,
       meaning: item.review || 'Consulta el significado con nuestro equipo.',
-      style: item.style, bodyArea: 'Por definir en consulta', duration: 'Según tamaño y detalle.',
+      style: item.style, bodyArea: 'Por definir en consulta', duration: 'Según tamaño y detalle.', price: Number(item.price),
     }))
   } catch { /* La galería conserva los diseños de referencia si el catálogo aún no responde. */ }
 }
