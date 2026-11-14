@@ -20,7 +20,8 @@
     "test:e2e": "npm run test:e2e --workspace backend",
     "db:up": "docker compose up -d mysql",
     "db:down": "docker compose down",
-    "db:logs": "docker compose logs -f mysql"
+    "db:logs": "docker compose logs -f mysql",
+    "doctor": "node scripts/check-environment.js"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
