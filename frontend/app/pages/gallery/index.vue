@@ -246,7 +246,14 @@ function toggle(slug: string) {
   font: 500 clamp(18px, 1.7vw, 23px) 'Playfair Display', serif;
 }
 
-.gallery-card__price {\n  margin: 9px 0 0;\n  color: var(--studio-paper);\n  font: 600 13px 'DM Mono', monospace;\n  letter-spacing: .04em;\n}\n\n.gallery-card__favorite {
+.gallery-card__price {
+  margin: 9px 0 0;
+  color: var(--studio-paper);
+  font: 600 13px 'DM Mono', monospace;
+  letter-spacing: .04em;
+}
+
+.gallery-card__favorite {
   width: 36px;
   height: 36px;
   flex: 0 0 auto;
