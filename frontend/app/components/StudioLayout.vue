@@ -61,7 +61,7 @@ const menuOpen = ref(false)
   --studio-panel-light: #192124;
   --studio-paper: #e9e6df;
   --studio-muted: #999b98;
-  --studio-red: #c92629;
+  --studio-red: #ff0000;
   --studio-line: rgba(233, 230, 223, .16);
 }
 
