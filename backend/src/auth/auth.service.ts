@@ -27,6 +27,25 @@ export class AuthService {
     return this.users.update(userId, { fullName: dto.fullName, email: dto.email });
   }
 
+  /**
+   * Verifica manualmente un JWT y devuelve el usuario activo asociado.
+   * Útil para integraciones que no pasan por el guard HTTP, como WebSockets.
+   */
+  async validateToken(token: string): Promise<User> {
+    let payload: JwtPayload;
+    try {
+      payload = await this.jwt.verifyAsync<JwtPayload>(token);
+    } catch {
+      throw new UnauthorizedException('Token inválido o expirado');
+    }
+
+    const user = await this.users.findById(payload.sub);
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Token inválido');
+    }
+    return user;
+  }
+
   async login(dto: LoginDto): Promise<AuthResponse> {
     const user = await this.users.findOneByEmail(dto.email);
     if (!user || !(await bcrypt.compare(dto.password, user.password))) {
