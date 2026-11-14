@@ -335,7 +335,7 @@ const menuOpen = ref(false)
 .studio-notice {
   padding: 14px 17px;
   border-left: 2px solid var(--studio-red);
-  background: rgba(201, 38, 41, .08);
+  background: rgba(255, 0, 0, .08);
   color: #dfd8ce;
   font-size: 12px;
   line-height: 1.7;
