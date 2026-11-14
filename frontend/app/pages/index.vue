@@ -261,7 +261,7 @@
     <section id="equipo" v-show="activePage === 'equipo'" class="home-screen artists-screen page-screen">
       <p class="eyebrow"><span></span> Personas detrás de la tinta</p>
       <h2>El equipo<br /><em>Kage.</em></h2>
-      <p class="screen-intro">Conoce a Faver, Ernestor y Jorge: el equipo detrás de cada diseño.</p>
+      <p class="screen-intro">Conoce a Faver, Ernestor, Jorge y Moisés: el equipo detrás de cada diseño.</p>
       
       <div class="artist-grid">
         <article v-for="artist in teamProfiles" :key="artist.slug" class="artist-card">
@@ -519,9 +519,17 @@ const tattooDraft = reactive({ name: '', category: '', style: '', price: 0, imag
 const staffDraft = reactive({ name: '', specialty: '', bio: '', imageUrl: '' })
 const remoteDesigns = ref<(TattooDesign & { price?: number })[]>([])
 const remoteStaff = ref<AdminStaff[]>([])
-const teamProfiles = computed(() => remoteStaff.value.length
-  ? remoteStaff.value.filter(member => member.isActive).map(member => ({ slug: `staff-${member.id}`, label: member.name, specialty: member.specialty, experience: member.bio || 'Equipo KAGE TATTOO', image: member.imageUrl || '/images/team/faver.webp' }))
-  : artistProfiles)
+const teamProfiles = computed(() => {
+  if (!remoteStaff.value.length) return artistProfiles
+  const activeRemote = remoteStaff.value
+    .filter(member => member.isActive)
+    .map(member => ({ slug: `staff-${member.id}`, label: member.name, specialty: member.specialty, experience: member.bio || 'Equipo KAGE TATTOO', image: member.imageUrl || '/images/team/faver.webp' }))
+  // Moisés también forma parte del equipo local y no debe desaparecer
+  // cuando la API devuelve personal administrado desde el panel.
+  const moises = artistProfiles.find(member => member.slug === 'moises')
+  const hasMoises = activeRemote.some(member => member.label.trim().toLowerCase() === 'moisés' || member.label.trim().toLowerCase() === 'moises')
+  return hasMoises || !moises ? activeRemote : [...activeRemote, moises]
+})
 const runtimeConfig = useRuntimeConfig()
 const apiBase = String(runtimeConfig.public.apiBase).replace(/\/$/, '')
 const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00']
