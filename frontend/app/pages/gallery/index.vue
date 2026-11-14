@@ -175,7 +175,7 @@ function toggle(slug: string) {
 
 .gallery-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(201, 38, 41, .6);
+  border-color: rgba(255, 0, 0, .6);
 }
 
 .gallery-card__image-link {
@@ -254,7 +254,7 @@ function toggle(slug: string) {
 }
 
 .gallery-card__favorite:hover {
-  background: rgba(201, 38, 41, .12);
+  background: rgba(255, 0, 0, .12);
 }
 
 .gallery-notice {
