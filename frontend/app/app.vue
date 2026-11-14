@@ -52,43 +52,61 @@ const toggleMusic = async () => {
 
   try {
     audio.volume = 0.45
-    audio.currentTime = audio.currentTime || 0
     await audio.play()
   } catch (error) {
     console.error('KAGE background music playback failed:', error)
+    audioError.value = true
   }
 }
 
-let retryPlayback: (() => void) | undefined
+let retryPlayback: ((event: Event) => void) | undefined
 
 onMounted(() => {
   const audio = backgroundAudio.value
   if (!audio) return
 
   audio.volume = 0.45
-  // Intentar autoplay; si el navegador lo bloquea, el botón permite
-  // iniciar el audio mediante un clic explícito del visitante.
-  const attemptAutoplay = async () => {
+
+  const removeInteractionListeners = () => {
+    window.removeEventListener('pointerdown', startMusicFromInteraction)
+    window.removeEventListener('keydown', startMusicFromInteraction)
+    window.removeEventListener('click', startMusicFromInteraction)
+    retryPlayback = undefined
+  }
+
+  const startMusicFromInteraction = async (event: Event) => {
+    const target = event.target
+    if (target instanceof Element && target.closest('.kage-music-toggle')) return
+    if (!audio.paused) {
+      removeInteractionListeners()
+      return
+    }
+
     try {
+      audio.volume = 0.45
       await audio.play()
-      window.removeEventListener('pointerdown', attemptAutoplay)
-      window.removeEventListener('keydown', attemptAutoplay)
-      retryPlayback = undefined
-    } catch {
-      // El navegador requiere interacción. El botón visible lo resuelve.
+      removeInteractionListeners()
+    } catch (error) {
+      // Se conserva el intento para la siguiente interacción del visitante.
+      console.warn('KAGE music is waiting for another user interaction:', error)
     }
   }
 
-  retryPlayback = attemptAutoplay
-  void attemptAutoplay()
-  window.addEventListener('pointerdown', attemptAutoplay, { once: true })
-  window.addEventListener('keydown', attemptAutoplay, { once: true })
+  retryPlayback = startMusicFromInteraction
+  // Algunos navegadores bloquean el sonido al entrar. Se inicia en el
+  // primer toque, clic o tecla del visitante y continúa en bucle.
+  void audio.play().then(removeInteractionListeners).catch(() => {
+    window.addEventListener('pointerdown', startMusicFromInteraction)
+    window.addEventListener('keydown', startMusicFromInteraction)
+    window.addEventListener('click', startMusicFromInteraction)
+  })
 })
 
 onBeforeUnmount(() => {
   if (retryPlayback) {
     window.removeEventListener('pointerdown', retryPlayback)
     window.removeEventListener('keydown', retryPlayback)
+    window.removeEventListener('click', retryPlayback)
   }
 })
 </script>
