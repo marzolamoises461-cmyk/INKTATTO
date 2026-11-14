@@ -17,7 +17,7 @@ export class TattooDesign {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   price!: string;
 
-  @Column({ name: 'image_url', type: 'varchar', length: 1500 })
+  @Column({ name: 'image_url', type: 'mediumtext' })
   imageUrl!: string;
 
   @Column({ type: 'varchar', length: 1200 })
