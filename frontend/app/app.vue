@@ -32,17 +32,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
-const isPlaying = ref(false)
+const isPlaying = ref(true)
 const playerKey = ref(0)
 const videoId = 'ssdN7ZfavHs'
-// El fragmento de Arcángel se sitúa aproximadamente desde 02:31 en la pista.
+// La parte solicitada de Arcángel comienza en 04:20 (260 segundos).
 const playerUrl = computed(() =>
-  `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&start=151&end=198&controls=1&modestbranding=1&rel=0&playsinline=1`,
+  `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&start=260&controls=1&modestbranding=1&rel=0&playsinline=1`,
 )
 
-function toggleMusic() {
+onMounted(() => {\n  // Intenta iniciar el fragmento automáticamente al cargar la web.\n  isPlaying.value = true\n})\n\nfunction toggleMusic() {
   if (isPlaying.value) {
     isPlaying.value = false
     return
