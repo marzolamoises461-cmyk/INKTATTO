@@ -1,6 +1,49 @@
 # INKTATTO — estudio de tatuajes
 
-Aplicación web Nuxt/Vue conectada a una API NestJS con MySQL. El repositorio está separado en dos carpetas principales para que puedas identificar y trabajar cada parte fácilmente.
+Aplicación web Nuxt/Vue conectada a una API NestJS con MySQL.
+
+## Inicio rápido (Windows, macOS y Linux)
+
+### Requisitos
+- Node.js **22.12 o superior** (recomendado Node 22 LTS) y npm 10 o superior.
+- Docker Desktop instalado y abierto para levantar la base de datos MySQL local.
+- Git para clonar el repositorio.
+
+### Abrir todo el proyecto
+Abre la carpeta raíz `INKTATTO` en Visual Studio Code y abre una terminal en esa carpeta. Ejecuta únicamente:
+
+```bash
+npm i
+npm run dev
+```
+
+El comando `npm i` instala las dependencias del frontend y backend desde la raíz. El primer `npm run dev` crea automáticamente `backend/.env` con una clave JWT local, inicia MySQL mediante Docker Compose y levanta API + web en paralelo.
+
+- Web: http://localhost:3000
+- API: http://localhost:3001/api
+- Salud de la API: http://localhost:3001/api/health
+
+Deja abierta la terminal mientras trabajas. Para detener los dos servidores, pulsa `Ctrl + C`.
+
+### Si es la primera vez en otro computador
+```bash
+git clone https://github.com/marzolamoises461-cmyk/INKTATTO.git
+cd INKTATTO
+npm i
+npm run dev
+```
+
+No copies archivos `.env` de otro computador ni subas contraseñas a GitHub. El archivo `backend/.env` se genera localmente y está excluido de Git. Si ya tienes un `backend/.env`, el iniciador lo conserva.
+
+### Comandos útiles
+- `npm run dev`: inicia MySQL, backend y frontend.
+- `npm run dev:frontend`: inicia solo la web (requiere API disponible).
+- `npm run dev:backend`: inicia solo la API (requiere MySQL disponible).
+- `npm run db:up`: inicia MySQL.
+- `npm run db:down`: detiene los contenedores.
+- `npm run build`: compila backend y frontend.
+
+Si Docker no está instalado o abierto, `npm run dev` mostrará el error y te indicará qué corregir. En ese caso instala Docker Desktop, ábrelo, espera a que indique que está funcionando y repite el comando.
 
 ## Estructura
 
