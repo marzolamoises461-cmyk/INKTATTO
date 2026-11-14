@@ -6,7 +6,7 @@ export class StaffMember {
   @Column({ length: 120 }) name!: string;
   @Column({ length: 100 }) specialty!: string;
   @Column({ type: 'text', nullable: true }) bio!: string | null;
-  @Column({ name: 'image_url', type: 'varchar', length: 1500, nullable: true }) imageUrl!: string | null;
+  @Column({ name: 'image_url', type: 'mediumtext', nullable: true }) imageUrl!: string | null;
   @Column({ name: 'is_active', default: true }) isActive!: boolean;
   @CreateDateColumn({ name: 'created_at' }) createdAt!: Date;
   @UpdateDateColumn({ name: 'updated_at' }) updatedAt!: Date;
