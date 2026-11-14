@@ -14,7 +14,7 @@ export class CreateTattooDesignDto {
   @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0)
   price!: number;
 
-  @IsString() @MinLength(8) @MaxLength(1500)
+  @IsString() @MinLength(8) @MaxLength(5000000)
   imageUrl!: string;
 
   @IsString() @MinLength(5) @MaxLength(1200)
