@@ -21,12 +21,15 @@ if (!fs.existsSync(envPath)) {
   console.log('✓ Se conserva backend/.env existente.');
 }
 
-console.log('Iniciando MySQL local con Docker Compose...');
-const docker = spawnSync('docker', ['compose', 'up', '-d', 'mysql'], {
-  cwd: root, stdio: 'inherit', shell: process.platform === 'win32',
+console.log('Iniciando MySQL local con Docker Compose y esperando a que esté saludable...');
+const docker = spawnSync('docker', ['compose', 'up', '-d', '--wait', 'mysql'], {
+  cwd: root,
+  stdio: 'inherit',
+  shell: false,
+  windowsHide: true,
 });
 if (docker.error || docker.status !== 0) {
-  console.error('\nNo se pudo iniciar MySQL. Instala y abre Docker Desktop y vuelve a ejecutar: npm run dev');
+  console.error('\nNo se pudo iniciar MySQL. Verifica que Docker Desktop esté instalado, abierto y actualizado (Docker Compose v2), y vuelve a ejecutar: npm run dev');
   process.exit(docker.status || 1);
 }
 console.log('\n✓ MySQL solicitado. Iniciando API y página web...');
