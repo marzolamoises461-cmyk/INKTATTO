@@ -9,7 +9,7 @@
 
       <section class="artist-grid" aria-label="Perfiles del equipo">
         <article v-for="(artist, index) in artistProfiles" :key="artist.slug" class="artist-card">
-          <NuxtLink class="artist-card__image" :class="{ 'artist-card__image--moises': artist.slug === 'moises' }" :to="`/artists/${artist.slug}`" :aria-label="`Consultar perfil de ${artist.label}`">
+          <NuxtLink class="artist-card__image" :class="{ 'artist-card__image--moises': artist.slug === 'moises', 'artist-card__image--faver': artist.slug === 'faver' }" :to="`/artists/${artist.slug}`" :aria-label="`Consultar perfil de ${artist.label}`">
             <img class="studio-image" :src="artist.image" :alt="`Fotografía de ${artist.label}, equipo KAGE Tattoo Studio`" loading="lazy" />
             <span>KAGE / PERFIL {{ (index + 1).toString().padStart(2, '0') }}</span>
           </NuxtLink>
@@ -73,6 +73,27 @@ import { artistProfiles } from '../../data/studio'
 
 .artist-card__image:hover img {
   transform: scale(1.04);
+}
+
+/* La foto de Faver se muestra completa, sin zoom ni recortes. */
+.artist-card__image--faver {
+  background: #080909;
+}
+
+.artist-card__image--faver .studio-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center center;
+}
+
+.artist-card__image--faver:hover img {
+  transform: none;
+}
+
+.artist-card__image--faver::after {
+  display: none;
 }
 
 /* La foto de Moisés se muestra completa, sin recortar cabeza, cuerpo ni tatuajes. */
