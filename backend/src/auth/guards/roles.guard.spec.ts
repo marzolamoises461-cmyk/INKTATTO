@@ -1,4 +1,4 @@
-import { ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { ExecutionContext, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { RolesGuard } from './roles.guard';
 
@@ -23,6 +23,10 @@ describe('RolesGuard', () => {
 
   it('allows the required admin role', () => {
     expect(guard.canActivate(contextFor('admin'))).toBe(true);
+  });
+
+  it('returns 401 when no authenticated user is present', () => {
+    expect(() => guard.canActivate(contextFor())).toThrow(UnauthorizedException);
   });
 
   it('returns 403 for an authenticated user without the required role', () => {
