@@ -126,9 +126,7 @@ export const designs: TattooDesign[] = [
     bodyArea: 'Antebrazo, hombro, pecho o espalda',
     duration: 'Según tamaño y detalle; se confirma en consulta.',
   },
-]
-
-
+,
   {
     slug: 'cuello-cybersigilism-nuca',
     name: 'Cybersigilism en nuca y cuello',
@@ -333,6 +331,8 @@ export const designs: TattooDesign[] = [
     bodyArea: 'Torso completo, pecho, abdomen y brazos',
     duration: 'Proyecto de gran formato por etapas.',
   },
+
+]
 
 export const artistProfiles = [
   { slug: 'faver', label: 'Faver', specialty: 'Tatuador principal', experience: 'Creatividad, precisión y pasión en cada diseño.', image: '/images/team/faver.webp' },
