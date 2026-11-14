@@ -1,0 +1,4 @@
+import { PartialType } from '@nestjs/mapped-types';
+import { CreateTattooDesignDto } from './create-tattoo-design.dto';
+
+export class UpdateTattooDesignDto extends PartialType(CreateTattooDesignDto) {}
