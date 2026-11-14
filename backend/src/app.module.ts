@@ -6,6 +6,7 @@ import { UserModule } from './user/user.module';
 import { ExampleModule } from './example/example.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { CatalogModule } from './catalog/catalog.module';
+import { StaffModule } from './staff/staff.module';
 import { HealthController } from './health/health.controller';
 import { validateEnvironment } from './config/env.validation';
 
@@ -41,6 +42,7 @@ import { validateEnvironment } from './config/env.validation';
     ExampleModule,
     BookingsModule,
     CatalogModule,
+    StaffModule,
   ],
 })
 export class AppModule {}
