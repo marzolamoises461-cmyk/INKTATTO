@@ -846,12 +846,12 @@ async function saveStaff() {
     const method = editingStaffId.value ? 'PATCH' : 'POST'
     const path = editingStaffId.value ? `/staff/${editingStaffId.value}` : '/staff'
     await apiRequest(path, { method, body: JSON.stringify(staffDraft) })
-    resetStaffDraft(); await loadAdminDashboard()
+    resetStaffDraft(); await loadAdminDashboard(); await loadPublicCatalog()
     adminMessage.value = 'El trabajador quedó guardado correctamente.'
   } catch (error) { adminMessage.value = error instanceof Error ? error.message : 'No se pudo guardar el trabajador.' }
 }
 async function deleteStaff(id: number) {
-  try { await apiRequest(`/staff/${id}`, { method: 'DELETE' }); await loadAdminDashboard(); adminMessage.value = 'El estado del trabajador se actualizó.' }
+  try { await apiRequest(`/staff/${id}`, { method: 'DELETE' }); await loadAdminDashboard(); await loadPublicCatalog(); adminMessage.value = 'El estado del trabajador se actualizó.' }
   catch (error) { adminMessage.value = error instanceof Error ? error.message : 'No se pudo actualizar el trabajador.' }
 }
 
@@ -1254,6 +1254,7 @@ h1 em, h2 em, blockquote em { color: var(--red); font-style: italic; }
 </style>
 <style>
 .admin-editor { margin: 18px 0 28px; padding: 20px; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; border: 1px solid rgba(209,138,85,.3); background: rgba(10,11,12,.5); }
+.design-price { display:block; margin-top:5px; color:var(--kage-copper); font:11px 'DM Mono',monospace; }
 .admin-panel h4 { margin-top: 30px; color: var(--kage-copper); font: 12px 'DM Mono',monospace; letter-spacing: .08em; text-transform: uppercase; }
 .admin-panel .saved-booking { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
 .admin-panel .saved-booking > div:first-of-type { flex:1; min-width:180px; }
