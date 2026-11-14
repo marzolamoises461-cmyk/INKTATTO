@@ -308,6 +308,35 @@
       <section v-if="isAdmin" class="profile-subsection admin-panel">
         <div class="screen-heading"><div><p class="eyebrow"><span></span> Zona privada</p><h3>Administración <em>Kage.</em></h3></div><button class="button button--outline" type="button" :disabled="adminLoading" @click="loadAdminDashboard">{{ adminLoading ? 'Actualizando…' : 'Actualizar datos' }}</button></div>
         <p v-if="adminMessage" class="screen-notice" role="status">{{ adminMessage }}</p>
+        <h4>Catálogo de tatuajes · {{ adminDesigns.length }}</h4>
+        <form class="screen-form admin-editor" @submit.prevent="saveTattoo">
+          <label class="screen-field">Nombre del diseño *<input v-model.trim="tattooDraft.name" required maxlength="120" /></label>
+          <label class="screen-field">Categoría *<input v-model.trim="tattooDraft.category" list="tattoo-categories" required maxlength="80" placeholder="Ej. Blackwork, Realismo..." /><datalist id="tattoo-categories"><option v-for="category in categories.filter(item => item !== 'Todos')" :key="category" :value="category" /></datalist></label>
+          <label class="screen-field">Estilo *<input v-model.trim="tattooDraft.style" required maxlength="80" /></label>
+          <label class="screen-field">Precio (COP) *<input v-model.number="tattooDraft.price" type="number" min="0" step="1000" required /></label>
+          <label class="screen-field screen-field--full">URL de imagen *<input v-model.trim="tattooDraft.imageUrl" type="url" required maxlength="1500" placeholder="https://..." /></label>
+          <label class="screen-field screen-field--full">Descripción *<textarea v-model.trim="tattooDraft.description" required minlength="5" maxlength="1200" /></label>
+          <label class="screen-field screen-field--full">Reseña / significado<input v-model.trim="tattooDraft.review" maxlength="1200" /></label>
+          <div class="inline-actions screen-field--full"><button class="button button--solid" type="submit">{{ editingTattooId ? 'Guardar cambios' : 'Agregar tatuaje' }}</button><button v-if="editingTattooId" class="button button--outline" type="button" @click="resetTattooDraft">Cancelar edición</button></div>
+        </form>
+        <article v-for="design in adminDesigns" :key="design.id" class="saved-booking">
+          <img :src="design.imageUrl" :alt="design.name" style="width:76px;height:76px;object-fit:cover;border-radius:6px" />
+          <div><strong>{{ design.name }} · {{ design.category }}</strong><span>{{ formatMoney(design.price) }} · {{ design.style }} · {{ design.isActive ? 'Publicado' : 'Oculto' }}</span></div>
+          <div class="cancel-actions"><button type="button" @click="editTattoo(design)">Editar</button><button type="button" @click="deleteTattoo(design.id)">{{ design.isActive ? 'Ocultar' : 'Eliminar' }}</button></div>
+        </article>
+        <h4>Trabajadores y artistas · {{ adminStaff.length }}</h4>
+        <form class="screen-form admin-editor" @submit.prevent="saveStaff">
+          <label class="screen-field">Nombre *<input v-model.trim="staffDraft.name" required maxlength="120" /></label>
+          <label class="screen-field">Cargo / especialidad *<input v-model.trim="staffDraft.specialty" required maxlength="100" placeholder="Tatuador, recepción..." /></label>
+          <label class="screen-field screen-field--full">URL de foto<input v-model.trim="staffDraft.imageUrl" type="url" maxlength="1500" placeholder="https://..." /></label>
+          <label class="screen-field screen-field--full">Descripción / experiencia<textarea v-model.trim="staffDraft.bio" maxlength="1200" /></label>
+          <div class="inline-actions screen-field--full"><button class="button button--solid" type="submit">{{ editingStaffId ? 'Guardar trabajador' : 'Agregar trabajador' }}</button><button v-if="editingStaffId" class="button button--outline" type="button" @click="resetStaffDraft">Cancelar edición</button></div>
+        </form>
+        <article v-for="member in adminStaff" :key="member.id" class="saved-booking">
+          <img v-if="member.imageUrl" :src="member.imageUrl" :alt="member.name" style="width:64px;height:64px;object-fit:cover;border-radius:50%" />
+          <div><strong>{{ member.name }}</strong><span>{{ member.specialty }} · {{ member.isActive ? 'Activo' : 'Inactivo' }}</span><span>{{ member.bio }}</span></div>
+          <div class="cancel-actions"><button type="button" @click="editStaff(member)">Editar</button><button type="button" @click="deleteStaff(member.id)">{{ member.isActive ? 'Desactivar' : 'Activar' }}</button></div>
+        </article>
         <h4>Solicitudes recibidas · {{ adminBookings.length }}</h4>
         <article v-for="request in adminBookings" :key="request.id" class="saved-booking">
           <div><strong>#{{ request.id }} · {{ request.user?.fullName || 'Cliente' }} · {{ request.bodyArea }}</strong><span>{{ request.user?.email }} · {{ displayDate(request.date) }} · {{ request.time }} · {{ request.status === 'pending' ? 'Pendiente' : request.status === 'confirmed' ? 'Confirmada' : 'Cancelada' }}</span><span>{{ request.artist }} · {{ request.size }} · {{ request.idea }}</span></div>
@@ -479,6 +508,15 @@ const adminBookings = ref<(ApiBooking & { user?: ApiUser })[]>([])
 const adminUsers = ref<(ApiUser & { isActive: boolean })[]>([])
 const adminMessage = ref('')
 const adminLoading = ref(false)
+type AdminTattoo = { id: number; name: string; category: string; style: string; price: number; imageUrl: string; description: string; review: string; isActive: boolean }
+type AdminStaff = { id: number; name: string; specialty: string; bio: string | null; imageUrl: string | null; isActive: boolean }
+const adminDesigns = ref<AdminTattoo[]>([])
+const adminStaff = ref<AdminStaff[]>([])
+const editingTattooId = ref<number | null>(null)
+const editingStaffId = ref<number | null>(null)
+const tattooDraft = reactive({ name: '', category: '', style: '', price: 0, imageUrl: '', description: '', review: '' })
+const staffDraft = reactive({ name: '', specialty: '', bio: '', imageUrl: '' })
+const remoteDesigns = ref<TattooDesign[]>([])
 const runtimeConfig = useRuntimeConfig()
 const apiBase = String(runtimeConfig.public.apiBase).replace(/\/$/, '')
 const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00']
@@ -502,16 +540,17 @@ const booking = reactive({
 })
 const contact = reactive({ name: '', email: '', message: '' })
 
+const galleryDesigns = computed(() => [...remoteDesigns.value, ...designs])
 const visibleDesigns = computed(() => selectedCategory.value === 'Todos'
-  ? designs
-  : designs.filter((design) => design.category === selectedCategory.value))
+  ? galleryDesigns.value
+  : galleryDesigns.value.filter((design) => design.category === selectedCategory.value))
 const relatedDesigns = computed(() => {
   if (!selectedDesign.value) return []
-  const sameCategory = designs.filter((design) => design.slug !== selectedDesign.value?.slug && design.category === selectedDesign.value?.category)
-  return (sameCategory.length ? sameCategory : designs.filter((design) => design.slug !== selectedDesign.value?.slug)).slice(0, 3)
+  const sameCategory = galleryDesigns.value.filter((design) => design.slug !== selectedDesign.value?.slug && design.category === selectedDesign.value?.category)
+  return (sameCategory.length ? sameCategory : galleryDesigns.value.filter((design) => design.slug !== selectedDesign.value?.slug)).slice(0, 3)
 })
 const favoriteDesigns = computed(() => favorites.value
-  .map((slug) => designs.find((design) => design.slug === slug))
+  .map((slug) => galleryDesigns.value.find((design) => design.slug === slug))
   .filter((design): design is TattooDesign => design !== undefined))
 const today = new Date()
 const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
@@ -526,6 +565,7 @@ onMounted(() => {
   const today = new Date()
   minDate.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   loadLocalData()
+  void loadPublicCatalog()
   void loadAccountData()
   window.addEventListener('hashchange', handleHashChange)
   document.addEventListener('click', handlePageLinkClick)
@@ -750,15 +790,63 @@ async function loadAdminDashboard() {
   adminLoading.value = true
   adminMessage.value = ''
   try {
-    const [requests, accounts] = await Promise.all([
+    const [requests, accounts, tattoos, staff] = await Promise.all([
       apiRequest<(ApiBooking & { user?: ApiUser })[]>('/bookings'),
       apiRequest<(ApiUser & { isActive: boolean })[]>('/users'),
+      apiRequest<AdminTattoo[]>('/catalog/admin'),
+      apiRequest<AdminStaff[]>('/staff/admin'),
     ])
     adminBookings.value = requests
     adminUsers.value = accounts
+    adminDesigns.value = tattoos
+    adminStaff.value = staff
   } catch (error) {
     adminMessage.value = error instanceof Error ? `No se pudo cargar la administración: ${error.message}` : 'No se pudo cargar la administración.'
   } finally { adminLoading.value = false }
+}
+
+
+async function loadPublicCatalog() {
+  try {
+    const items = await apiRequest<AdminTattoo[]>('/catalog')
+    remoteDesigns.value = items.map((item) => ({
+      slug: `remote-${item.id}`, name: item.name, category: item.category,
+      image: item.imageUrl, imageAlt: item.name, description: item.description,
+      meaning: item.review || 'Consulta el significado con nuestro equipo.',
+      style: item.style, bodyArea: 'Por definir en consulta', duration: 'Según tamaño y detalle.',
+    }))
+  } catch { /* La galería conserva los diseños de referencia si el catálogo aún no responde. */ }
+}
+function formatMoney(value: number) { return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Number(value) || 0) }
+function resetTattooDraft() { Object.assign(tattooDraft, { name: '', category: '', style: '', price: 0, imageUrl: '', description: '', review: '' }); editingTattooId.value = null }
+function editTattoo(item: AdminTattoo) { Object.assign(tattooDraft, { name: item.name, category: item.category, style: item.style, price: Number(item.price), imageUrl: item.imageUrl, description: item.description, review: item.review || '' }); editingTattooId.value = item.id; window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }) }
+async function saveTattoo() {
+  try {
+    const method = editingTattooId.value ? 'PATCH' : 'POST'
+    const path = editingTattooId.value ? `/catalog/${editingTattooId.value}` : '/catalog'
+    await apiRequest(path, { method, body: JSON.stringify(tattooDraft) })
+    resetTattooDraft(); await loadAdminDashboard(); await loadPublicCatalog()
+    adminMessage.value = 'El catálogo de tatuajes se guardó correctamente.'
+  } catch (error) { adminMessage.value = error instanceof Error ? error.message : 'No se pudo guardar el tatuaje.' }
+}
+async function deleteTattoo(id: number) {
+  try { await apiRequest(`/catalog/${id}`, { method: 'DELETE' }); await loadAdminDashboard(); await loadPublicCatalog(); adminMessage.value = 'El tatuaje se actualizó.' }
+  catch (error) { adminMessage.value = error instanceof Error ? error.message : 'No se pudo actualizar el tatuaje.' }
+}
+function resetStaffDraft() { Object.assign(staffDraft, { name: '', specialty: '', bio: '', imageUrl: '' }); editingStaffId.value = null }
+function editStaff(item: AdminStaff) { Object.assign(staffDraft, { name: item.name, specialty: item.specialty, bio: item.bio || '', imageUrl: item.imageUrl || '' }); editingStaffId.value = item.id }
+async function saveStaff() {
+  try {
+    const method = editingStaffId.value ? 'PATCH' : 'POST'
+    const path = editingStaffId.value ? `/staff/${editingStaffId.value}` : '/staff'
+    await apiRequest(path, { method, body: JSON.stringify(staffDraft) })
+    resetStaffDraft(); await loadAdminDashboard()
+    adminMessage.value = 'El trabajador quedó guardado correctamente.'
+  } catch (error) { adminMessage.value = error instanceof Error ? error.message : 'No se pudo guardar el trabajador.' }
+}
+async function deleteStaff(id: number) {
+  try { await apiRequest(`/staff/${id}`, { method: 'DELETE' }); await loadAdminDashboard(); adminMessage.value = 'El estado del trabajador se actualizó.' }
+  catch (error) { adminMessage.value = error instanceof Error ? error.message : 'No se pudo actualizar el trabajador.' }
 }
 
 async function updateAdminBooking(id: number, status: 'confirmed' | 'cancelled') {
@@ -1157,4 +1245,12 @@ h1 em, h2 em, blockquote em { color: var(--red); font-style: italic; }
   border-color: rgba(209,138,85,.62);
 }
 
+</style>
+<style>
+.admin-editor { margin: 18px 0 28px; padding: 20px; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; border: 1px solid rgba(209,138,85,.3); background: rgba(10,11,12,.5); }
+.admin-panel h4 { margin-top: 30px; color: var(--kage-copper); font: 12px 'DM Mono',monospace; letter-spacing: .08em; text-transform: uppercase; }
+.admin-panel .saved-booking { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+.admin-panel .saved-booking > div:first-of-type { flex:1; min-width:180px; }
+.admin-panel .saved-booking img { flex:0 0 auto; }
+@media(max-width:650px){ .admin-editor{grid-template-columns:1fr;} }
 </style>
