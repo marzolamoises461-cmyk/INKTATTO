@@ -20,6 +20,7 @@ describe('UserService', () => {
   };
 
   beforeEach(() => {
+    jest.clearAllMocks();
     repository = {
       existsBy: jest.fn().mockResolvedValue(false),
       create: jest.fn((value: Partial<User>) => value),
@@ -46,7 +47,44 @@ describe('UserService', () => {
     await expect(service.create({ email: 'a@b.com', password: 'secret1', fullName: 'Test' })).rejects.toBeInstanceOf(ConflictException);
   });
 
+  it('lists users ordered by creation date', async () => {
+    await service.findAll();
+    expect(repository.find).toHaveBeenCalledWith({ order: { createdAt: 'DESC' } });
+  });
+
   it('returns 404 when a user does not exist', async () => {
     await expect(service.findOne(999)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('updates user details and hashes a changed password', async () => {
+    const existing = { id: 1, email: 'old@mail.com', fullName: 'Old', password: 'old-hash' } as User;
+    repository.findOneBy.mockResolvedValue(existing);
+    const result = await service.update(1, {
+      email: ' NEW@MAIL.COM ',
+      fullName: 'New Name',
+      password: 'new-secret',
+    });
+    expect(bcrypt.hash).toHaveBeenCalledWith('new-secret', 10);
+    expect(repository.merge).toHaveBeenCalledWith(existing, {
+      email: 'new@mail.com',
+      fullName: 'New Name',
+      password: 'hashed-password',
+    });
+    expect(result.email).toBe('new@mail.com');
+  });
+
+  it('rejects changing an email to one already used', async () => {
+    repository.findOneBy.mockResolvedValue({ id: 1, email: 'old@mail.com' } as User);
+    repository.existsBy.mockResolvedValue(true);
+    await expect(service.update(1, { email: 'taken@mail.com' }))
+      .rejects.toBeInstanceOf(ConflictException);
+    expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it('removes an existing user', async () => {
+    const existing = { id: 5, email: 'remove@mail.com' } as User;
+    repository.findOneBy.mockResolvedValue(existing);
+    await service.remove(5);
+    expect(repository.remove).toHaveBeenCalledWith(existing);
   });
 });
