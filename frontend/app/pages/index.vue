@@ -1084,4 +1084,77 @@ h1 em, h2 em, blockquote em { color: var(--red); font-style: italic; }
   .studio-about__care ul { grid-column:auto; }
 }
 @keyframes page-turn { from { opacity: .55; transform: perspective(1200px) rotateY(-3deg) translateX(12px); } to { opacity: 1; transform: perspective(1200px) rotateY(0) translateX(0); } }
+
+/* Paleta KAGE: negro profundo + vino, cobre y violeta discreto */
+:root {
+  --red: #a92f43;
+  --kage-copper: #d18a55;
+  --kage-violet: #76639a;
+  --kage-silver: #b8bcc2;
+}
+.eyebrow > span {
+  background: var(--kage-copper);
+  box-shadow: 0 0 12px rgba(209,138,85,.55);
+}
+.button--solid {
+  border: 1px solid rgba(209,138,85,.8);
+  background: linear-gradient(115deg, #842638 0%, #b33b4c 58%, #8e293d 100%);
+  color: #fff;
+  box-shadow: 0 8px 24px rgba(132,38,56,.2);
+  transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
+}
+.button--solid:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.12);
+  box-shadow: 0 10px 30px rgba(169,47,67,.32);
+}
+.button--outline:hover {
+  border-color: var(--kage-copper);
+  background: rgba(209,138,85,.12);
+  color: #f0c39d;
+}
+.nav-action, .nav-login {
+  border-color: rgba(209,138,85,.52);
+}
+.nav-action:hover, .nav-login:hover { color: #efbd91; border-color: var(--kage-copper); }
+.category-filters button:hover,
+.category-filters button.is-active {
+  border-color: var(--kage-copper);
+  background: rgba(169,47,67,.13);
+  color: #f0c39d;
+}
+.home-design-card {
+  border-color: rgba(184,188,194,.22);
+  transition: border-color .25s ease, transform .25s ease, box-shadow .25s ease;
+}
+.home-design-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(209,138,85,.72);
+  box-shadow: 0 12px 32px rgba(0,0,0,.28), 0 0 18px rgba(118,99,154,.12);
+}
+.home-design-card__image span {
+  border: 1px solid rgba(209,138,85,.5);
+  color: #f0c39d;
+}
+.favorite-button { border-color: rgba(118,99,154,.55); }
+.favorite-button:hover, .favorite-button[aria-pressed="true"] {
+  border-color: var(--kage-copper);
+  color: #e8a56f;
+  background: rgba(169,47,67,.14);
+}
+.screen-counter, .process-steps article > span {
+  color: var(--kage-copper);
+}
+.tattoo-detail, .booking-form, .booking-summary, .contact-form, .client-profile, .access-panel {
+  border-color: rgba(118,99,154,.34);
+  box-shadow: 0 12px 36px rgba(0,0,0,.16);
+}
+.screen-field input:focus, .screen-field select:focus, .screen-field textarea:focus {
+  border-color: var(--kage-copper);
+  box-shadow: 0 0 0 2px rgba(209,138,85,.1);
+}
+.artist-card:hover, .studio-about__style:hover {
+  border-color: rgba(209,138,85,.62);
+}
+
 </style>
