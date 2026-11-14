@@ -7,7 +7,7 @@ export class CreateStaffMembers1763140100000 implements MigrationInterface {
       name VARCHAR(120) NOT NULL,
       specialty VARCHAR(100) NOT NULL,
       bio TEXT NULL,
-      image_url VARCHAR(1500) NULL,
+      image_url MEDIUMTEXT NULL,
       is_active TINYINT NOT NULL DEFAULT 1,
       created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
       updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
