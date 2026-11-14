@@ -274,7 +274,7 @@ async function submitRequest() {
 .booking-time__options label:hover,
 .booking-time__options label.is-selected {
   border-color: var(--studio-red);
-  background: rgba(201, 38, 41, .08);
+  background: rgba(255, 0, 0, .08);
   color: var(--studio-paper);
 }
 
