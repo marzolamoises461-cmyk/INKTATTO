@@ -44,6 +44,7 @@
             <div>
               <p class="gallery-card__category">{{ design.category }}</p>
               <h2><NuxtLink :to="`/gallery/${design.slug}`">{{ design.name }}</NuxtLink></h2>
+              <p class="gallery-card__price">{{ formatPrice(design.price) }}</p>
             </div>
             <button
               class="gallery-card__favorite"
@@ -82,6 +83,10 @@ onMounted(() => {
     storageMessage.value = error instanceof Error ? error.message : 'No se pudieron cargar los favoritos.'
   }
 })
+
+function formatPrice(value: number) {
+  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(value)
+}
 
 function toggle(slug: string) {
   try {
@@ -241,7 +246,7 @@ function toggle(slug: string) {
   font: 500 clamp(18px, 1.7vw, 23px) 'Playfair Display', serif;
 }
 
-.gallery-card__favorite {
+.gallery-card__price {\n  margin: 9px 0 0;\n  color: var(--studio-paper);\n  font: 600 13px 'DM Mono', monospace;\n  letter-spacing: .04em;\n}\n\n.gallery-card__favorite {
   width: 36px;
   height: 36px;
   flex: 0 0 auto;
