@@ -3,20 +3,20 @@
     <main class="studio-main artists-page">
       <p class="studio-eyebrow">Personas detrás de la tinta</p>
       <h1 class="studio-title">El equipo<br /><em>Kage.</em></h1>
-      <p class="studio-lede">Un espacio para descubrir estilos, experiencia y trabajos. Los perfiles reales del equipo aún están pendientes de publicar.</p>
+      <p class="studio-lede">Un espacio para descubrir estilos, experiencia y trabajos. Conoce a las personas que convierten tus ideas en tinta.</p>
 
-      <p class="studio-notice artists-notice">Los nombres, fotografías, años de experiencia y disponibilidad del equipo no están incluidos todavía. Estos perfiles de muestra no representan a personas reales del estudio.</p>
+      
 
       <section class="artist-grid" aria-label="Perfiles del equipo">
         <article v-for="(artist, index) in artistProfiles" :key="artist.slug" class="artist-card">
-          <NuxtLink class="artist-card__image" :to="`/artists/${artist.slug}`" :aria-label="`Consultar perfil de muestra ${artist.label}`">
-            <img class="studio-image" :src="artist.image" :alt="`Imagen de referencia para ${artist.label}`" loading="lazy" />
+          <NuxtLink class="artist-card__image" :to="`/artists/${artist.slug}`" :aria-label="`Consultar perfil de ${artist.label}`">
+            <img class="studio-image" :src="artist.image" :alt="`Fotografía de ${artist.label}, equipo KAGE Tattoo Studio`" loading="lazy" />
             <span>KAGE / PERFIL {{ (index + 1).toString().padStart(2, '0') }}</span>
           </NuxtLink>
           <div class="artist-card__body">
             <div class="artist-card__heading">
               <div>
-                <p class="artist-card__tag">Nombre por confirmar</p>
+                <p class="artist-card__tag">Equipo KAGE</p>
                 <h2>{{ artist.label }}</h2>
               </div>
               <span class="artist-card__index">0{{ index + 1 }}</span>
