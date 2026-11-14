@@ -954,4 +954,5 @@ export const artistProfiles = [
   { slug: 'faver', label: 'Faver', specialty: 'Tatuador principal', experience: 'Creatividad, precisión y pasión en cada diseño.', image: '/images/team/faver.webp' },
   { slug: 'ernestor', label: 'Ernestor', specialty: 'Tatuador artístico', experience: 'Ideas únicas para un tatuaje inolvidable.', image: '/images/team/ernestor.webp' },
   { slug: 'jorge', label: 'Jorge', specialty: 'Tatuador especialista', experience: 'Tu historia, nuestro arte.', image: '/images/team/jorge.webp' },
+  { slug: 'moises', label: 'Moisés', specialty: 'Tatuador especialista en blackwork y tatuajes de cuello', experience: 'Diseños de alto contraste y composiciones en negro y gris.', image: '/images/team/moises.webp' },
 ]
