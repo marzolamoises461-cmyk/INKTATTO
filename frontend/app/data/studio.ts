@@ -126,7 +126,6 @@ export const designs: TattooDesign[] = [
     bodyArea: 'Antebrazo, hombro, pecho o espalda',
     duration: 'Según tamaño y detalle; se confirma en consulta.',
   },
-,
   {
     slug: 'cuello-cybersigilism-nuca',
     name: 'Cybersigilism en nuca y cuello',
