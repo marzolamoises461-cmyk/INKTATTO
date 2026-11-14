@@ -10,8 +10,8 @@ jest.mock('bcrypt', () => ({ compare: jest.fn() }));
 
 describe('AuthService', () => {
   let service: AuthService;
-  let users: { create: jest.Mock; findOneByEmail: jest.Mock };
-  let jwt: { signAsync: jest.Mock };
+  let users: { create: jest.Mock; findOneByEmail: jest.Mock; findById: jest.Mock };
+  let jwt: { signAsync: jest.Mock; verifyAsync: jest.Mock };
   let config: { get: jest.Mock };
 
   const account = {
@@ -28,8 +28,12 @@ describe('AuthService', () => {
     users = {
       create: jest.fn().mockResolvedValue(account),
       findOneByEmail: jest.fn().mockResolvedValue(account),
+      findById: jest.fn().mockResolvedValue(account),
     };
-    jwt = { signAsync: jest.fn().mockResolvedValue('signed.jwt.token') };
+    jwt = {
+      signAsync: jest.fn().mockResolvedValue('signed.jwt.token'),
+      verifyAsync: jest.fn().mockResolvedValue({ sub: account.id, email: account.email, role: account.role }),
+    };
     config = { get: jest.fn().mockReturnValue('3600') };
     service = new AuthService(
       users as unknown as UserService,
@@ -65,4 +69,26 @@ describe('AuthService', () => {
     await expect(service.login({ email: account.email, password: 'secret123' }))
       .rejects.toBeInstanceOf(UnauthorizedException);
   });
+  it('validates a JWT manually and returns the active user', async () => {
+    await expect(service.validateToken('valid.token')).resolves.toBe(account);
+    expect(jwt.verifyAsync).toHaveBeenCalledWith('valid.token');
+    expect(users.findById).toHaveBeenCalledWith(account.id);
+  });
+
+  it('rejects an invalid or expired JWT', async () => {
+    jwt.verifyAsync.mockRejectedValue(new Error('expired'));
+    await expect(service.validateToken('expired.token'))
+      .rejects.toBeInstanceOf(UnauthorizedException);
+    expect(users.findById).not.toHaveBeenCalled();
+  });
+
+  it('rejects a JWT whose user no longer exists or is inactive', async () => {
+    users.findById.mockResolvedValue(null);
+    await expect(service.validateToken('valid.token'))
+      .rejects.toBeInstanceOf(UnauthorizedException);
+    users.findById.mockResolvedValue({ ...account, isActive: false });
+    await expect(service.validateToken('valid.token'))
+      .rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
 });
