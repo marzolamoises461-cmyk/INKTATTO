@@ -1,11 +1,39 @@
 {
   "tracks": [
     {
+      "id": "almighty-vacio",
+      "title": "Vacío (Instrumental)",
+      "artist": "Almighty",
+      "category": "Melancólico",
+      "file": "/musica/Almighty%20-%20vac%C3%ADo%20%5BInstrumental%5D.mp3"
+    },
+    {
       "id": "sweet-dreams-instrumental",
       "title": "Sweet Dreams Instrumental",
       "artist": "Eurythmics",
-      "category": "Dark",
+      "category": "Oscuro",
       "file": "/musica/Eurythmics%20-%20Sweet%20Dreams%20Instrumental.mp3"
+    },
+    {
+      "id": "moscow-mule-instrumental",
+      "title": "Moscow Mule (Instrumental)",
+      "artist": "Bad Bunny",
+      "category": "Urbano suave",
+      "file": "/musica/Bad%20Bunny%20-%20Moscow%20Mule%20%28Instrumental%29.mp3"
+    },
+    {
+      "id": "anuel-vibra",
+      "title": "Vibra (Instrumental)",
+      "artist": "Anuel AA",
+      "category": "Urbano intenso",
+      "file": "/musica/Anuel%20AA%20-%20Vibra%20%28Instrumental%29.mp3"
+    },
+    {
+      "id": "bryant-myers-trap",
+      "title": "Trap Instrumental",
+      "artist": "Estilo Bryant Myers · Prod. JHC Beats",
+      "category": "Explosivo",
+      "file": "/musica/Pista%20de%20Trap%202021%20Instrumental%20Estilo%20Bryant%20Myers%20Type%20Beat%20Prod.%20JHC%20Beats.mp3"
     }
   ]
 }
