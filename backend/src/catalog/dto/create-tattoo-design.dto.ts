@@ -1,0 +1,25 @@
+import { Type } from 'class-transformer';
+import { IsNumber, IsString, MaxLength, Min, MinLength } from 'class-validator';
+
+export class CreateTattooDesignDto {
+  @IsString() @MinLength(2) @MaxLength(120)
+  name!: string;
+
+  @IsString() @MinLength(2) @MaxLength(80)
+  category!: string;
+
+  @IsString() @MinLength(2) @MaxLength(80)
+  style!: string;
+
+  @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0)
+  price!: number;
+
+  @IsString() @MinLength(8) @MaxLength(1500)
+  imageUrl!: string;
+
+  @IsString() @MinLength(5) @MaxLength(1200)
+  description!: string;
+
+  @IsString() @MaxLength(1200)
+  review!: string;
+}
