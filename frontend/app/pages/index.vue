@@ -315,7 +315,7 @@
           <label class="screen-field">Categoría *<input v-model.trim="tattooDraft.category" list="tattoo-categories" required maxlength="80" placeholder="Ej. Blackwork, Realismo..." /><datalist id="tattoo-categories"><option v-for="category in categories.filter(item => item !== 'Todos')" :key="category" :value="category" /></datalist></label>
           <label class="screen-field">Estilo *<input v-model.trim="tattooDraft.style" required maxlength="80" /></label>
           <label class="screen-field">Precio (COP) *<input v-model.number="tattooDraft.price" type="number" min="0" step="1000" required /></label>
-          <label class="screen-field screen-field--full">URL de imagen *<input v-model.trim="tattooDraft.imageUrl" type="url" required maxlength="1500" placeholder="https://..." /></label>
+          <label class="screen-field screen-field--full">Imagen del tatuaje *<input type="file" accept="image/*" @change="handleTattooImage" /><small>Selecciona una foto desde tu dispositivo. Se optimiza automáticamente.</small><img v-if="tattooDraft.imageUrl" :src="tattooDraft.imageUrl" alt="Vista previa del tatuaje" class="admin-image-preview" /></label>
           <label class="screen-field screen-field--full">Descripción *<textarea v-model.trim="tattooDraft.description" required minlength="5" maxlength="1200" /></label>
           <label class="screen-field screen-field--full">Reseña / significado<input v-model.trim="tattooDraft.review" maxlength="1200" /></label>
           <div class="inline-actions screen-field--full"><button class="button button--solid" type="submit">{{ editingTattooId ? 'Guardar cambios' : 'Agregar tatuaje' }}</button><button v-if="editingTattooId" class="button button--outline" type="button" @click="resetTattooDraft">Cancelar edición</button></div>
@@ -329,7 +329,7 @@
         <form class="screen-form admin-editor" @submit.prevent="saveStaff">
           <label class="screen-field">Nombre *<input v-model.trim="staffDraft.name" required maxlength="120" /></label>
           <label class="screen-field">Cargo / especialidad *<input v-model.trim="staffDraft.specialty" required maxlength="100" placeholder="Tatuador, recepción..." /></label>
-          <label class="screen-field screen-field--full">URL de foto<input v-model.trim="staffDraft.imageUrl" type="url" maxlength="1500" placeholder="https://..." /></label>
+          <label class="screen-field screen-field--full">Foto del trabajador<input type="file" accept="image/*" @change="handleStaffImage" /><small>Selecciona una foto desde tu dispositivo.</small><img v-if="staffDraft.imageUrl" :src="staffDraft.imageUrl" alt="Vista previa del trabajador" class="admin-image-preview admin-image-preview--round" /></label>
           <label class="screen-field screen-field--full">Descripción / experiencia<textarea v-model.trim="staffDraft.bio" maxlength="1200" /></label>
           <div class="inline-actions screen-field--full"><button class="button button--solid" type="submit">{{ editingStaffId ? 'Guardar trabajador' : 'Agregar trabajador' }}</button><button v-if="editingStaffId" class="button button--outline" type="button" @click="resetStaffDraft">Cancelar edición</button></div>
         </form>
@@ -823,6 +823,39 @@ async function loadPublicCatalog() {
     }))
   } catch { /* La galería conserva los diseños de referencia si el catálogo aún no responde. */ }
 }
+async function readOptimizedImage(event: Event, target: { imageUrl: string }) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  if (!file.type.startsWith('image/')) { adminMessage.value = 'Selecciona un archivo de imagen válido.'; input.value = ''; return }
+  if (file.size > 8 * 1024 * 1024) { adminMessage.value = 'La imagen debe pesar menos de 8 MB.'; input.value = ''; return }
+  try {
+    const bitmap = await createImageBitmap(file)
+    const maxSide = 1400
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+    const context = canvas.getContext('2d')
+    if (!context) throw new Error('No se pudo procesar la imagen.')
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    bitmap.close()
+    const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error('No se pudo comprimir la imagen.')), 'image/jpeg', 0.78))
+    if (blob.size > 3.5 * 1024 * 1024) throw new Error('La imagen optimizada supera el límite permitido. Prueba con otra foto.')
+    target.imageUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('No se pudo leer la imagen.'))
+      reader.onerror = () => reject(new Error('No se pudo leer la imagen.'))
+      reader.readAsDataURL(blob)
+    })
+    adminMessage.value = 'Imagen cargada desde tu dispositivo. Guarda el formulario para publicarla.'
+  } catch (error) {
+    adminMessage.value = error instanceof Error ? error.message : 'No se pudo cargar la imagen.'
+  } finally { input.value = '' }
+}
+function handleTattooImage(event: Event) { void readOptimizedImage(event, tattooDraft) }
+function handleStaffImage(event: Event) { void readOptimizedImage(event, staffDraft) }
+
 function formatMoney(value: number) { return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Number(value) || 0) }
 function resetTattooDraft() { Object.assign(tattooDraft, { name: '', category: '', style: '', price: 0, imageUrl: '', description: '', review: '' }); editingTattooId.value = null }
 function editTattoo(item: AdminTattoo) { Object.assign(tattooDraft, { name: item.name, category: item.category, style: item.style, price: Number(item.price), imageUrl: item.imageUrl, description: item.description, review: item.review || '' }); editingTattooId.value = item.id; window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }) }
@@ -1253,6 +1286,7 @@ h1 em, h2 em, blockquote em { color: var(--red); font-style: italic; }
 
 </style>
 <style>
+.admin-image-preview{display:block;width:min(100%,260px);max-height:260px;object-fit:cover;margin-top:12px;border:1px solid rgba(255,255,255,.18);border-radius:8px}.admin-image-preview--round{width:120px;height:120px;border-radius:50%}
 .admin-editor { margin: 18px 0 28px; padding: 20px; display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; border: 1px solid rgba(209,138,85,.3); background: rgba(10,11,12,.5); }
 .design-price { display:block; margin-top:5px; color:var(--kage-copper); font:11px 'DM Mono',monospace; }
 .admin-panel h4 { margin-top: 30px; color: var(--kage-copper); font: 12px 'DM Mono',monospace; letter-spacing: .08em; text-transform: uppercase; }
