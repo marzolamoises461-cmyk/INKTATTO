@@ -1010,7 +1010,7 @@ h1 em, h2 em, blockquote em { color: var(--red); font-style: italic; }
 .studio-about__artists .text-link { display:inline-block; margin-top:19px; border-color:rgba(233,230,223,.3); }
 .studio-about__artists .text-link span { color:var(--red); }
 .studio-about__care { display:grid; grid-template-columns:54px minmax(0,.9fr) minmax(0,1.1fr); gap:clamp(20px,4vw,48px); align-items:start; margin-top:95px; padding:clamp(25px,4vw,48px); border:1px solid rgba(233,230,223,.16); background:linear-gradient(125deg,rgba(25,33,36,.8),rgba(14,17,18,.95)); }
-.studio-about__mark { display:grid; place-items:center; width:48px; height:48px; border:1px solid rgba(201,38,41,.55); color:var(--red); font:25px 'Playfair Display',serif; }
+.studio-about__mark { display:grid; place-items:center; width:48px; height:48px; border:1px solid rgba(255, 0, 0, .55); color:var(--red); font:25px 'Playfair Display',serif; }
 .studio-about__care h2 { font-size:clamp(30px,3.8vw,46px); }
 .studio-about__care > div:nth-child(2) > p:last-child,.studio-about__experience > div:last-child > p { max-width:460px; margin:15px 0 0; color:#999b98; font-size:11px; line-height:1.85; }
 .studio-about__care ul,.studio-about__experience ol { margin:0; padding:0; list-style:none; }
@@ -1045,7 +1045,7 @@ h1 em, h2 em, blockquote em { color: var(--red); font-style: italic; }
 .category-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 40px 0 26px; padding: 15px 0; border-top: 1px solid #343738; border-bottom: 1px solid #343738; }
 .category-filters button, .screen-back { padding: 9px 12px; border: 1px solid transparent; background: transparent; color: #9b9d99; cursor: pointer; font: 9px 'DM Mono', monospace; letter-spacing: .08em; text-transform: uppercase; transition: color .2s ease, border-color .2s ease; }
 .category-filters button:hover, .category-filters button.is-active { border-color: var(--red); color: var(--paper); }
-.screen-notice { padding: 13px 16px; border-left: 2px solid var(--red); background: rgba(201, 38, 41, .09); color: #ded8cf; font-size: 11px; line-height: 1.7; }
+.screen-notice { padding: 13px 16px; border-left: 2px solid var(--red); background: rgba(255, 0, 0, .09); color: #ded8cf; font-size: 11px; line-height: 1.7; }
 .home-design-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 17px; }
 .home-design-card { overflow: hidden; border: 1px solid #303435; background: #111415; }
 .home-design-card__image { position: relative; display: block; width: 100%; height: clamp(220px, 28vw, 350px); overflow: hidden; padding: 0; border: 0; background: #1b2224; cursor: pointer; text-align: left; }
