@@ -922,7 +922,7 @@ function logout() {
   --night: #08090a;
   --paper: #e9e6df;
   --muted: #898a86;
-  --red: #c92629;
+  --red: #ff0000;
 }
 
 * { box-sizing: border-box; }
@@ -1214,7 +1214,7 @@ h1 em, h2 em, blockquote em { color: var(--red); font-style: italic; }
 
 /* Paleta KAGE: negro profundo + vino, cobre y violeta discreto */
 :root {
-  --red: #c4475b;
+  --red: #ff0000;
   --kage-copper: #d18a55;
   --kage-violet: #76639a;
   --kage-silver: #b8bcc2;
