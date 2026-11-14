@@ -944,6 +944,47 @@ export const designs: TattooDesign[] = [
   }
 ]
 
+
+// Genera una lámina vectorial distinta por diseño. Evita fotografías repetidas
+// o referencias visuales que no correspondan al nombre del tatuaje.
+function tattooFlashPreview(design: TattooDesign, index: number): string {
+  const name = design.name.replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c] || c));
+  const category = design.category.replace(/[&<>"]/g, '');
+  const key = (design.slug + ' ' + design.name).toLowerCase();
+  let motif = '';
+  if (/mariposa|alas/.test(key)) motif = '<path d="M0 0 C-65 -75 -105 -15 -12 12 C-95 75 -35 100 0 20 C35 100 95 75 12 12 C105 -15 65 -75 0 0Z"/><path d="M0 -5 L0 65 M-48 -28 Q-20 -5 -10 12 M48 -28 Q20 -5 10 12"/>';
+  else if (/rosa|flor|floral|peonia|botan|olivo|ram|hoja/.test(key)) motif = '<path d="M0 55 C-20 20 -45 10 -30 -15 C-20 -45 10 -45 0 -70 C35 -60 45 -30 20 -10 C55 -15 65 15 35 30 C20 45 10 50 0 55Z"/><path d="M0 55 Q-8 5 0 -70 M0 15 Q-55 -5 -48 -30 M0 32 Q50 0 52 -20"/>';
+  else if (/serpiente|snake/.test(key)) motif = '<path d="M-45 -65 C55 -90 65 -15 -10 -5 C-85 5 -55 75 20 55 C65 45 60 5 25 15"/><path d="M20 15 l22 -9 -6 18 M-48 -65 l-15 -12 M-48 -65 l-1 18"/>';
+  else if (/lobo|leon|tigre|pantera|cuervo|dragon|colibri|pez koi|animal/.test(key)) motif = '<path d="M-48 -40 L-58 -78 L-20 -58 Q0 -72 20 -58 L58 -78 L48 -40 Q72 5 35 42 L0 65 L-35 42 Q-72 5 -48 -40Z"/><path d="M-25 -5 L-8 0 M25 -5 L8 0 M-12 25 Q0 35 12 25"/>';
+  else if (/ojo/.test(key)) motif = '<path d="M-75 0 Q0 -65 75 0 Q0 65 -75 0Z"/><circle r="24"/><circle r="9"/>';
+  else if (/calavera|gargola|angel|oscuro|dark/.test(key)) motif = '<path d="M-42 -48 Q0 -85 42 -48 L48 15 Q35 45 18 52 L-18 52 Q-35 45 -48 15Z"/><circle cx="-18" cy="0" r="11"/><circle cx="18" cy="0" r="11"/><path d="M0 15 L-8 35 L8 35Z M-18 52 L-18 68 M0 52 L0 68 M18 52 L18 68"/>';
+  else if (/reloj|tiempo/.test(key)) motif = '<circle r="58"/><path d="M0 -42 L0 0 L32 18 M-22 -72 L22 -72 M-22 72 L22 72"/>';
+  else if (/mandala|ornamental|filigrana|dotwork/.test(key)) motif = '<circle r="55"/><circle r="36"/><circle r="16"/><path d="M0 -78 Q25 -40 0 -55 Q-25 -40 0 -78 M78 0 Q40 25 55 0 Q40 -25 78 0 M0 78 Q25 40 0 55 Q-25 40 0 78 M-78 0 Q-40 25 -55 0 Q-40 -25 -78 0"/>';
+  else if (/geometr|constelacion|estrella|luna|sol|ola/.test(key)) motif = '<path d="M0 -70 L17 -17 L70 0 L17 17 L0 70 L-17 17 L-70 0 L-17 -17Z"/><circle r="28"/>';
+  else if (/biomecan|cyber|sigil|mecan/.test(key)) motif = '<path d="M-45 -60 L-10 -35 L-25 -5 L20 10 L5 40 L45 60 M45 -60 L10 -35 L25 -5 L-20 10 L-5 40 L-45 60"/><circle r="14"/><path d="M-65 0 H-25 M25 0 H65 M0 -75 V-25 M0 25 V75"/>';
+  else if (/corazon/.test(key)) motif = '<path d="M0 60 C-95 0 -60 -65 0 -25 C60 -65 95 0 0 60Z"/>';
+  else if (/daga|espada/.test(key)) motif = '<path d="M0 -80 L18 20 L0 55 L-18 20Z M-38 15 H38 M0 55 V78"/>';
+  else motif = '<circle r="52"/><path d="M-65 0 Q0 -85 65 0 Q0 85 -65 0Z M-35 -35 L35 35 M35 -35 L-35 35"/>';
+  const rotation = (index * 17) % 360;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 500">
+    <rect width="420" height="500" rx="18" fill="#f5f1e9"/>
+    <path d="M28 28 H392 V472 H28Z" fill="none" stroke="#b9aa98" stroke-width="1.5"/>
+    <g transform="translate(210 205) rotate(${rotation})" fill="none" stroke="#24201e" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">${motif}</g>
+    <g fill="#a20d18" opacity=".85"><circle cx="${52+(index*13)%310}" cy="95" r="3"/><circle cx="${340-(index*11)%280}" cy="310" r="2.5"/></g>
+    <path d="M70 365 H350" stroke="#b9aa98"/>
+    <text x="210" y="395" text-anchor="middle" font-family="Arial,sans-serif" font-size="18" font-weight="700" fill="#24201e">${name}</text>
+    <text x="210" y="422" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" letter-spacing="2" fill="#8c1820">${category.toUpperCase()}</text>
+    <text x="210" y="450" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" fill="#756c62">KAGE · TATTOO FLASH</text>
+  </svg>`;
+  return 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg);
+}
+
+// Cada ficha tiene una ilustración única, vinculada a su nombre y categoría.
+designs.forEach((design, index) => {
+  design.image = tattooFlashPreview(design, index);
+  design.imageAlt = `Ilustración de referencia única para ${design.name}, categoría ${design.category}; zona: ${design.bodyArea}.`;
+});
+
 export const artistProfiles = [
   { slug: 'faver', label: 'Faver', specialty: 'Tatuador principal', experience: 'Creatividad, precisión y pasión en cada diseño.', image: '/images/team/faver.webp' },
   { slug: 'ernestor', label: 'Ernestor', specialty: 'Tatuador artístico', experience: 'Ideas únicas para un tatuaje inolvidable.', image: '/images/team/ernestor.webp' },
