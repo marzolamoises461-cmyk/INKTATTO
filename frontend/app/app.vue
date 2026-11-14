@@ -5,10 +5,9 @@
     </NuxtLayout>
 
     <ClientOnly>
-      <div class="kage-music">
+      <div class="kage-music" :class="{ 'kage-music--expanded': expanded }">
         <div class="kage-music__player">
           <iframe
-            :key="playerKey"
             :src="playerUrl"
             title="ACHO PR - fragmento de Arcángel"
             allow="autoplay; encrypted-media; picture-in-picture"
@@ -19,10 +18,10 @@
         <button
           class="kage-music__button"
           type="button"
-          :aria-label="isPlaying ? 'Detener música' : 'Reintentar música'"
-          @click="toggleMusic"
+          :aria-label="expanded ? 'Reducir reproductor' : 'Ampliar reproductor'"
+          @click="expanded = !expanded"
         >
-          {{ isPlaying ? 'Ⅱ' : '♫' }}
+          {{ expanded ? '−' : '↗' }}
         </button>
       </div>
     </ClientOnly>
@@ -30,23 +29,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 
-const isPlaying = ref(true)
-const playerKey = ref(0)
+const expanded = ref(false)
 const videoId = 'ssdN7ZfavHs'
 const playerUrl = computed(() =>
-  `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&start=270&end=330&controls=1&modestbranding=1&rel=0&playsinline=1`,
+  `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&start=240&end=340&loop=1&playlist=${videoId}&controls=1&modestbranding=1&rel=0&playsinline=1`,
 )
-
-onMounted(() => {
-  isPlaying.value = true
-})
-
-function toggleMusic() {
-  playerKey.value += 1
-  isPlaying.value = true
-}
 </script>
 
 <style>
@@ -68,6 +57,7 @@ function toggleMusic() {
   border-radius: 10px;
   background: #101010;
   box-shadow: 0 5px 18px #0009;
+  transition: width .2s ease, height .2s ease;
 }
 .kage-music__player iframe {
   display: block;
@@ -86,8 +76,9 @@ function toggleMusic() {
   text-align: center;
 }
 .kage-music__button {
-  width: 38px;
-  height: 38px;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
   border: 1px solid #ff0000;
   border-radius: 50%;
   background: #101010;
@@ -100,14 +91,26 @@ function toggleMusic() {
   background: #ff0000;
   color: #fff;
 }
+.kage-music--expanded .kage-music__player {
+  width: min(640px, calc(100vw - 64px));
+  height: auto;
+  aspect-ratio: 16 / 10;
+}
+.kage-music--expanded .kage-music__player iframe {
+  width: 100%;
+  height: calc(100% - 23px);
+  aspect-ratio: 16 / 9;
+}
+.kage-music--expanded .kage-music__label {
+  height: 23px;
+}
 @media (max-width: 600px) {
   .kage-music {
     right: 8px;
     bottom: 8px;
   }
-  .kage-music__player {
-    width: 200px;
-    height: 200px;
+  .kage-music--expanded .kage-music__player {
+    width: calc(100vw - 58px);
   }
 }
 </style>
