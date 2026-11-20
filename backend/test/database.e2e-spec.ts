@@ -8,6 +8,7 @@ import request from 'supertest';
 import { User } from '../src/user/entities/user.entity';
 import { Artist } from '../src/artists/entities/artist.entity';
 import { ReferenceImageStorageService } from '../src/bookings/reference-image-storage.service';
+import { EmailService } from '../src/notifications/email.service';
 
 const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
 
@@ -22,6 +23,8 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
   let blockId = 0;
   let bookingId = 0;
   let workflowBookingId = 0;
+  const sentEmails: Array<{ recipientEmail: string; subject: string; textBody: string }> = [];
+  const originalFrontendUrl = process.env.FRONTEND_URL;
 
   const suffix = `${Date.now()}-${process.pid}`;
   const customerEmail = `cliente-${suffix}@inktatto.test`;
@@ -37,6 +40,7 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
       );
     }
 
+    process.env.FRONTEND_URL = 'http://localhost:3000';
     const { AppModule } = await import('../src/app.module');
     let imageId = 0;
     const imageContent = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -57,6 +61,13 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(ReferenceImageStorageService)
       .useValue(imageStorage)
+      .overrideProvider(EmailService)
+      .useValue({
+        isConfigured: jest.fn().mockReturnValue(true),
+        send: jest.fn(async (message: { recipientEmail: string; subject: string; textBody: string }) => {
+          sentEmails.push(message);
+        }),
+      })
       .compile();
     app = moduleRef.createNestApplication();
     app.setGlobalPrefix('api');
@@ -103,6 +114,8 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
       await users.delete({ email: In([customerEmail, secondEmail, adminEmail]) });
     }
     if (app) await app.close();
+    if (originalFrontendUrl === undefined) delete process.env.FRONTEND_URL;
+    else process.env.FRONTEND_URL = originalFrontendUrl;
   });
 
   it('rechaza rutas protegidas sin token', async () => {
@@ -111,6 +124,11 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
   });
 
   it('registra clientes sin permitir autoasignarse el rol admin', async () => {
+    await request(app!.getHttpServer())
+      .post('/api/auth/register')
+      .send({ email: `weak-${suffix}@inktatto.test`, password: '1234567', fullName: 'Contraseña débil' })
+      .expect(400);
+
     const registration = await request(app!.getHttpServer())
       .post('/api/auth/register')
       .send({ email: customerEmail, password, fullName: 'Cliente de pruebas' })
@@ -237,17 +255,24 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
     await request(app!.getHttpServer())
       .patch(`/api/bookings/${bookingId}/cancel`)
       .set('Authorization', `Bearer ${bookingOwnerToken === customerToken ? secondCustomerToken : customerToken}`)
+      .send({ reason: 'No corresponde al propietario de la reserva' })
       .expect(403);
 
     await request(app!.getHttpServer())
       .patch(`/api/bookings/${bookingId}/cancel`)
       .set('Authorization', `Bearer ${bookingOwnerToken}`)
+      .send({ reason: 'El cliente necesita cambiar la fecha' })
       .expect(200)
-      .expect(({ body }) => expect(body.status).toBe('cancelled'));
+      .expect(({ body }) => {
+        expect(body.status).toBe('cancelled');
+        expect(body.cancellationReason).toBe('El cliente necesita cambiar la fecha');
+        expect(body).not.toHaveProperty('adminNotes');
+      });
 
     await request(app!.getHttpServer())
       .patch(`/api/bookings/${bookingId}/cancel`)
       .set('Authorization', `Bearer ${bookingOwnerToken}`)
+      .send({ reason: 'Intento repetido' })
       .expect(403);
   });
 
@@ -256,6 +281,14 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
       .get('/api/users')
       .set('Authorization', `Bearer ${customerToken}`)
       .expect(403);
+    await request(app!.getHttpServer())
+      .get('/api/notifications/status')
+      .set('Authorization', `Bearer ${customerToken}`)
+      .expect(403);
+    await request(app!.getHttpServer())
+      .get('/api/notifications/status')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
 
     const userList = await request(app!.getHttpServer())
       .get('/api/users')
@@ -299,9 +332,14 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
     await request(app!.getHttpServer())
       .patch(`/api/bookings/${workflowBookingId}/status`)
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ status: 'quoted' })
+      .send({ status: 'quoted', quotedPrice: 250000, depositAmount: 50000, adminNotes: 'Diseño revisado' })
       .expect(200)
-      .expect(({ body }) => expect(body.status).toBe('quoted'));
+      .expect(({ body }) => {
+        expect(body.status).toBe('quoted');
+        expect(body.quotedPrice).toBe('250000.00');
+        expect(body.depositAmount).toBe('50000.00');
+        expect(body.adminNotes).toBe('Diseño revisado');
+      });
 
     await request(app!.getHttpServer())
       .patch(`/api/bookings/${workflowBookingId}/status`)
@@ -309,6 +347,59 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
       .send({ status: 'confirmed' })
       .expect(200)
       .expect(({ body }) => expect(body.status).toBe('confirmed'));
+
+    const history = await request(app!.getHttpServer())
+      .get(`/api/bookings/${workflowBookingId}/history`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(history.body.map((item: { toStatus: string }) => item.toStatus))
+      .toEqual(['pending', 'quoted', 'confirmed']);
+    expect(history.body[1].actorEmail).toBe(adminEmail);
+  });
+
+  it('envía recuperación con token de un solo uso y valida cambio de contraseña', async () => {
+    const message = 'Si el correo corresponde a una cuenta activa, recibirás instrucciones para recuperar la contraseña.';
+    await request(app!.getHttpServer())
+      .post('/api/auth/password/change')
+      .set('Authorization', `Bearer ${customerToken}`)
+      .send({ currentPassword: 'wrong-password', newPassword: 'Changed-Test-Password-2026!' })
+      .expect(401);
+    await request(app!.getHttpServer())
+      .post('/api/auth/password/change')
+      .set('Authorization', `Bearer ${customerToken}`)
+      .send({ currentPassword: password, newPassword: 'Changed-Test-Password-2026!' })
+      .expect(201);
+    await request(app!.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email: customerEmail, password })
+      .expect(401);
+
+    await request(app!.getHttpServer())
+      .post('/api/auth/password/forgot')
+      .send({ email: customerEmail })
+      .expect(200)
+      .expect(({ body }) => expect(body.message).toBe(message));
+    const email = sentEmails.find((item) => item.recipientEmail === customerEmail)!;
+    const token = email.textBody.match(/reset-password\?token=([a-f0-9]{64})/)?.[1];
+    expect(token).toBeTruthy();
+
+    await request(app!.getHttpServer())
+      .post('/api/auth/password/reset')
+      .send({ token, password: 'Updated-Test-Password-2026!' })
+      .expect(201);
+    await request(app!.getHttpServer())
+      .post('/api/auth/password/reset')
+      .send({ token, password: 'Another-Test-Password-2026!' })
+      .expect(400);
+
+    await request(app!.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email: customerEmail, password: 'Changed-Test-Password-2026!' })
+      .expect(401);
+    await request(app!.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email: customerEmail, password: 'Updated-Test-Password-2026!' })
+      .expect(200);
   });
 
   it('invalida el token cuando la cuenta se desactiva', async () => {

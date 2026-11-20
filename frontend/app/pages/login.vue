@@ -21,7 +21,7 @@
           </label>
           <label class="studio-field">
             Contraseña
-            <input v-model="password" type="password" :autocomplete="registering ? 'new-password' : 'current-password'" required :minlength="registering ? 6 : 1" maxlength="72" />
+            <input v-model="password" type="password" :autocomplete="registering ? 'new-password' : 'current-password'" required :minlength="registering ? 8 : 1" maxlength="72" />
           </label>
           <p v-if="message" class="studio-notice" role="status">{{ message }}</p>
           <button class="studio-button login-form__submit" type="submit" :disabled="loading">
@@ -30,6 +30,9 @@
           <button class="login-form__switch" type="button" @click="registering = !registering; message = ''">
             {{ registering ? 'Ya tengo una cuenta · Iniciar sesión' : '¿No tienes cuenta? · Crear una' }}
           </button>
+          <NuxtLink v-if="!registering" class="login-form__recovery" to="/forgot-password">
+            Olvidé mi contraseña
+          </NuxtLink>
         </form>
       </section>
       <p class="login-footer">¿Ya tienes una idea? <NuxtLink to="/booking">Reserva una consulta <span>↗</span></NuxtLink></p>
@@ -82,6 +85,8 @@ async function submit() {
 .login-form__submit { justify-content: space-between; }
 .login-form__submit:disabled { opacity: .6; cursor: wait; }
 .login-form__switch, .login-footer { border: 0; background: none; color: var(--studio-muted); cursor: pointer; font: 10px/1.8 'DM Mono', monospace; letter-spacing: .04em; text-align: left; }
+.login-form__recovery { color: var(--studio-muted); font: 10px/1.8 'DM Mono', monospace; }
+.login-form__recovery:hover { color: var(--studio-paper); }
 .login-form__switch:hover, .login-footer a:hover { color: var(--studio-paper); }
 .login-footer { width: min(100%, 940px); margin: 19px auto 0; }
 .login-footer a, .login-footer a span { color: var(--studio-paper); }

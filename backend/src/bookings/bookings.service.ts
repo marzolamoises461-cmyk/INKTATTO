@@ -9,9 +9,11 @@ import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingStatusDto } from './dto/update-booking-status.dto';
 import { Booking } from './entities/booking.entity';
 import { BookingReferenceImage } from './entities/booking-reference-image.entity';
+import { BookingStatusHistory } from './entities/booking-status-history.entity';
 import {
   ReferenceImageStorageService, ReferenceImageUpload,
 } from './reference-image-storage.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 export interface ReferenceImageMetadata {
   id: number;
@@ -22,6 +24,26 @@ export interface ReferenceImageMetadata {
   url: string;
 }
 
+export interface BookingClientView {
+  id: number;
+  artistId: number | null;
+  artist: string;
+  date: string;
+  time: string;
+  durationMinutes: number;
+  bodyArea: string;
+  size: string;
+  idea: string;
+  status: Booking['status'];
+  quotedPrice: string | null;
+  depositAmount: string | null;
+  cancellationReason: string | null;
+  rejectionReason: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  cancelledAt: Date | null;
+}
+
 @Injectable()
 export class BookingsService {
   private readonly logger = new Logger(BookingsService.name);
@@ -29,12 +51,14 @@ export class BookingsService {
   constructor(
     @InjectRepository(Booking) private readonly bookings: Repository<Booking>,
     @InjectRepository(BookingReferenceImage) private readonly images: Repository<BookingReferenceImage>,
+    @InjectRepository(BookingStatusHistory) private readonly statusHistory: Repository<BookingStatusHistory>,
     private readonly dataSource: DataSource,
     private readonly artists: ArtistsService,
     private readonly imageStorage: ReferenceImageStorageService,
+    private readonly notifications: NotificationsService,
   ) {}
 
-  async create(user: User, dto: CreateBookingDto, files: Express.Multer.File[]): Promise<Booking> {
+  async create(user: User, dto: CreateBookingDto, files: Express.Multer.File[]): Promise<BookingClientView> {
     this.assertImageCount(files.length);
     const uploads = await this.uploadFiles(files);
     const durationMinutes = dto.durationMinutes ?? 60;
@@ -57,7 +81,16 @@ export class BookingsService {
           BookingReferenceImage,
           uploads.map((upload) => ({ ...upload, bookingId: savedBooking.id })),
         );
-        return savedBooking;
+        await manager.save(BookingStatusHistory, {
+          bookingId: savedBooking.id,
+          fromStatus: null,
+          toStatus: savedBooking.status,
+          actorId: user.id,
+          actorEmail: user.email,
+          note: 'Solicitud creada',
+        });
+        await this.notifications.queueBookingEvent(manager, savedBooking, 'booking.created');
+        return this.clientView(savedBooking);
       });
     } catch (error) {
       await this.removeUploadedFiles(uploads);
@@ -175,38 +208,147 @@ export class BookingsService {
     }
   }
 
-  async findMine(userId: number): Promise<Booking[]> {
-    return this.bookings.find({ where: { user: { id: userId } }, order: { createdAt: 'DESC' } });
+  async findMine(userId: number): Promise<BookingClientView[]> {
+    const bookings = await this.bookings.find({
+      where: { user: { id: userId } },
+      order: { createdAt: 'DESC' },
+    });
+    return bookings.map((booking) => this.clientView(booking));
   }
 
   async findAll(): Promise<Booking[]> {
     return this.bookings.find({ relations: { user: true }, order: { createdAt: 'DESC' } });
   }
 
-  async cancelMine(id: number, userId: number): Promise<Booking> {
-    const booking = await this.bookings.findOne({ where: { id }, relations: { user: true } });
-    if (!booking) throw new NotFoundException('La solicitud no existe');
-    if (booking.user.id !== userId) throw new ForbiddenException('No puedes cancelar una solicitud de otra persona');
-    if (booking.status !== 'pending') throw new ForbiddenException('Solo se pueden cancelar solicitudes pendientes');
-    booking.status = 'cancelled';
-    return this.bookings.save(booking);
+  async cancelMine(id: number, user: User, reason: string): Promise<BookingClientView> {
+    return this.dataSource.transaction(async (manager) => {
+      const booking = await manager.findOne(Booking, {
+        where: { id },
+        relations: { user: true },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!booking) throw new NotFoundException('La solicitud no existe');
+      if (booking.user.id !== user.id) throw new ForbiddenException('No puedes cancelar una solicitud de otra persona');
+      if (booking.status !== 'pending') throw new ForbiddenException('Solo se pueden cancelar solicitudes pendientes');
+      const previousStatus = booking.status;
+      booking.status = 'cancelled';
+      booking.cancellationReason = reason.trim();
+      booking.cancelledAt = new Date();
+      const saved = await manager.save(Booking, booking);
+      await manager.save(BookingStatusHistory, {
+        bookingId: saved.id,
+        fromStatus: previousStatus,
+        toStatus: saved.status,
+        actorId: user.id,
+        actorEmail: user.email,
+        note: reason.trim(),
+      });
+      await this.notifications.queueBookingEvent(manager, saved, 'booking.cancelled', reason.trim());
+      return this.clientView(saved);
+    });
   }
 
-  async updateStatus(id: number, dto: UpdateBookingStatusDto): Promise<Booking> {
-    const booking = await this.bookings.findOne({ where: { id }, relations: { user: true } });
-    if (!booking) throw new NotFoundException('La solicitud no existe');
-    const allowedTransitions: Record<Booking['status'], Booking['status'][]> = {
-      pending: ['quoted', 'rejected', 'cancelled'],
-      quoted: ['confirmed', 'rejected', 'cancelled'],
-      confirmed: ['completed', 'cancelled'],
-      completed: [],
-      cancelled: [],
-      rejected: [],
+  async updateStatus(id: number, dto: UpdateBookingStatusDto, actor: User): Promise<Booking> {
+    return this.dataSource.transaction(async (manager) => {
+      const booking = await manager.findOne(Booking, {
+        where: { id },
+        relations: { user: true },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!booking) throw new NotFoundException('La solicitud no existe');
+      const allowedTransitions: Record<Booking['status'], Booking['status'][]> = {
+        pending: ['quoted', 'rejected', 'cancelled'],
+        quoted: ['confirmed', 'rejected', 'cancelled'],
+        confirmed: ['completed', 'cancelled'],
+        completed: [],
+        cancelled: [],
+        rejected: [],
+      };
+      if (!allowedTransitions[booking.status].includes(dto.status)) {
+        throw new BadRequestException(`No se puede cambiar una cita de ${booking.status} a ${dto.status}`);
+      }
+      if (dto.status === 'quoted' && dto.quotedPrice === undefined) {
+        throw new BadRequestException('La cotización debe incluir un precio');
+      }
+      if (dto.status !== 'quoted' && (
+        dto.quotedPrice !== undefined || dto.depositAmount !== undefined || dto.durationMinutes !== undefined
+      )) {
+        throw new BadRequestException('El precio, anticipo y duración solo se pueden cambiar al cotizar');
+      }
+      const price = dto.quotedPrice ?? Number(booking.quotedPrice ?? 0);
+      const deposit = dto.depositAmount ?? Number(booking.depositAmount ?? 0);
+      if (deposit > price) throw new BadRequestException('El anticipo no puede superar el precio cotizado');
+
+      const previousStatus = booking.status;
+      if (dto.status === 'quoted' && dto.durationMinutes !== undefined) {
+        await this.artists.assertCanBook(
+          manager,
+          booking.artist,
+          booking.date,
+          booking.time,
+          dto.durationMinutes,
+          booking.id,
+        );
+      }
+      booking.status = dto.status;
+      if (dto.status === 'quoted') {
+        booking.quotedPrice = price.toFixed(2);
+        booking.depositAmount = deposit.toFixed(2);
+        if (dto.durationMinutes !== undefined) booking.durationMinutes = dto.durationMinutes;
+      }
+      if (dto.adminNotes !== undefined) booking.adminNotes = dto.adminNotes.trim() || null;
+      if (dto.status === 'cancelled') {
+        booking.cancelledAt = new Date();
+        booking.cancellationReason = dto.reason!.trim();
+      }
+      if (dto.status === 'rejected') booking.rejectionReason = dto.reason!.trim();
+      const saved = await manager.save(Booking, booking);
+      await manager.save(BookingStatusHistory, {
+        bookingId: saved.id,
+        fromStatus: previousStatus,
+        toStatus: saved.status,
+        actorId: actor.id,
+        actorEmail: actor.email,
+        note: dto.reason?.trim() || dto.adminNotes?.trim() || null,
+      });
+      await this.notifications.queueBookingEvent(
+        manager,
+        saved,
+        `booking.${saved.status}`,
+        dto.reason?.trim(),
+      );
+      return saved;
+    });
+  }
+
+  async history(id: number): Promise<BookingStatusHistory[]> {
+    if (!await this.bookings.existsBy({ id })) throw new NotFoundException('La solicitud no existe');
+    return this.statusHistory.find({
+      where: { bookingId: id },
+      relations: { actor: true },
+      order: { changedAt: 'ASC' },
+    });
+  }
+
+  private clientView(booking: Booking): BookingClientView {
+    return {
+      id: booking.id,
+      artistId: booking.artistId,
+      artist: booking.artist,
+      date: booking.date,
+      time: booking.time,
+      durationMinutes: booking.durationMinutes,
+      bodyArea: booking.bodyArea,
+      size: booking.size,
+      idea: booking.idea,
+      status: booking.status,
+      quotedPrice: booking.quotedPrice ?? null,
+      depositAmount: booking.depositAmount ?? null,
+      cancellationReason: booking.cancellationReason ?? null,
+      rejectionReason: booking.rejectionReason ?? null,
+      createdAt: booking.createdAt,
+      updatedAt: booking.updatedAt,
+      cancelledAt: booking.cancelledAt ?? null,
     };
-    if (!allowedTransitions[booking.status].includes(dto.status)) {
-      throw new BadRequestException(`No se puede cambiar una cita de ${booking.status} a ${dto.status}`);
-    }
-    booking.status = dto.status;
-    return this.bookings.save(booking);
   }
 }

@@ -14,6 +14,9 @@ import { GetUser } from './decorators/get-user.decorator';
 import { LoginDto } from './dto/login.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { AuthResponse } from './interfaces/auth-response.interface';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
@@ -32,6 +35,16 @@ export class AuthController {
     return this.auth.login(dto);
   }
 
+  @Post('password/forgot')
+  forgotPassword(@Body() dto: ForgotPasswordDto): Promise<{ message: string }> {
+    return this.auth.forgotPassword(dto);
+  }
+
+  @Post('password/reset')
+  resetPassword(@Body() dto: ResetPasswordDto): Promise<{ message: string }> {
+    return this.auth.resetPassword(dto);
+  }
+
   @Get('profile')
   @UseGuards(JwtAuthGuard)
   profile(@GetUser() user: User): { user: User } {
@@ -42,5 +55,14 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   async updateProfile(@GetUser() user: User, @Body() dto: UpdateProfileDto): Promise<{ user: User }> {
     return { user: await this.auth.updateProfile(user.id, dto) };
+  }
+
+  @Post('password/change')
+  @UseGuards(JwtAuthGuard)
+  changePassword(
+    @GetUser() user: User,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<{ message: string }> {
+    return this.auth.changePassword(user.id, dto);
   }
 }

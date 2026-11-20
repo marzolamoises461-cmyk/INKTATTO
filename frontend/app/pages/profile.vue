@@ -21,6 +21,31 @@
         </dl>
       </section>
 
+      <section class="password-section studio-card">
+        <div>
+          <p class="studio-eyebrow">Seguridad</p>
+          <h2>Cambiar contraseña</h2>
+        </div>
+        <form class="password-form" @submit.prevent="changePassword">
+          <label class="studio-field">
+            Contraseña actual
+            <input v-model="currentPassword" type="password" autocomplete="current-password" required maxlength="72" />
+          </label>
+          <label class="studio-field">
+            Nueva contraseña
+            <input v-model="newPassword" type="password" autocomplete="new-password" required minlength="8" maxlength="72" />
+          </label>
+          <label class="studio-field">
+            Confirmar contraseña nueva
+            <input v-model="passwordConfirmation" type="password" autocomplete="new-password" required minlength="8" maxlength="72" />
+          </label>
+          <p v-if="passwordMessage" class="studio-notice" role="status">{{ passwordMessage }}</p>
+          <button class="studio-button" type="submit" :disabled="passwordLoading">
+            {{ passwordLoading ? 'Actualizando…' : 'Actualizar contraseña' }} <span>↗</span>
+          </button>
+        </form>
+      </section>
+
       <section class="client-section">
         <div class="client-section__heading">
           <div><p class="studio-eyebrow">Agenda sincronizada</p><h2>Mis <em>solicitudes.</em></h2></div>
@@ -34,6 +59,10 @@
               <p>{{ statusLabel(booking.status) }}</p>
               <h3>{{ booking.bodyArea }} · {{ booking.time.slice(0, 5) }}</h3>
               <span>{{ formatBookingDate(booking.date) }} · {{ booking.artist }}</span>
+              <span v-if="booking.quotedPrice">Cotización: {{ formatCurrency(booking.quotedPrice) }} · Anticipo: {{ formatCurrency(booking.depositAmount || '0') }}</span>
+              <span v-if="booking.cancellationReason || booking.rejectionReason" class="client-booking__reason">
+                {{ booking.cancellationReason || booking.rejectionReason }}
+              </span>
               <div v-if="bookingImages[booking.id]?.length" class="booking-reference-images">
                 <img
                   v-for="image in bookingImages[booking.id]"
@@ -89,6 +118,10 @@ interface BookingRecord {
   time: string
   bodyArea: string
   status: 'pending' | 'quoted' | 'confirmed' | 'completed' | 'cancelled' | 'rejected'
+  quotedPrice?: string | null
+  depositAmount?: string | null
+  cancellationReason?: string | null
+  rejectionReason?: string | null
 }
 
 interface BookingImage {
@@ -106,6 +139,11 @@ const bookingImages = ref<Record<number, BookingImage[]>>({})
 const favorites = ref<string[]>([])
 const loading = ref(true)
 const pageMessage = ref('')
+const currentPassword = ref('')
+const newPassword = ref('')
+const passwordConfirmation = ref('')
+const passwordMessage = ref('')
+const passwordLoading = ref(false)
 const favoriteDesigns = computed(() => favorites.value.map((slug) => designs.find((design) => design.slug === slug)).filter((design) => design !== undefined))
 
 onMounted(async () => {
@@ -191,14 +229,51 @@ async function addReferenceImages(booking: BookingRecord, event: Event): Promise
 
 async function cancelBooking(id: number): Promise<void> {
   if (!globalThis.confirm('¿Quieres cancelar esta solicitud?')) return
+  const reason = globalThis.prompt('Indica el motivo de la cancelación (mínimo 3 caracteres):')?.trim()
+  if (!reason || reason.length < 3) {
+    pageMessage.value = 'La cancelación requiere un motivo de al menos 3 caracteres.'
+    return
+  }
   try {
-    const updated = await api<BookingRecord>(`/bookings/${id}/cancel`, { method: 'PATCH' })
+    const updated = await api<BookingRecord>(`/bookings/${id}/cancel`, { method: 'PATCH', body: { reason } })
     bookings.value = bookings.value.map((item) => item.id === id ? updated : item)
     pageMessage.value = 'La solicitud fue cancelada.'
   } catch (error: unknown) {
     const detail = (error as { data?: { message?: string } }).data?.message
     pageMessage.value = detail ?? 'No se pudo cancelar la solicitud.'
   }
+}
+
+async function changePassword(): Promise<void> {
+  passwordMessage.value = ''
+  if (newPassword.value !== passwordConfirmation.value) {
+    passwordMessage.value = 'Las contraseñas nuevas no coinciden.'
+    return
+  }
+  passwordLoading.value = true
+  try {
+    const result = await api<{ message: string }>('/auth/password/change', {
+      method: 'POST',
+      body: { currentPassword: currentPassword.value, newPassword: newPassword.value },
+    })
+    passwordMessage.value = result.message
+    currentPassword.value = ''
+    newPassword.value = ''
+    passwordConfirmation.value = ''
+  } catch (error: unknown) {
+    const detail = (error as { data?: { message?: string } }).data?.message
+    passwordMessage.value = detail ?? 'No se pudo actualizar la contraseña.'
+  } finally {
+    passwordLoading.value = false
+  }
+}
+
+function formatCurrency(value: string): string {
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    maximumFractionDigits: 0,
+  }).format(Number(value))
 }
 
 async function signOut(): Promise<void> {
@@ -209,6 +284,11 @@ async function signOut(): Promise<void> {
 
 <style scoped>
 .client-profile { margin-top: 35px; padding: clamp(22px, 4vw, 40px); }
+.password-section { display: grid; grid-template-columns: .8fr 1.2fr; gap: 30px; margin-top: 16px; padding: clamp(22px, 4vw, 40px); }
+.password-section h2 { margin: 0; font: 500 26px 'Playfair Display', serif; }
+.password-form { display: grid; gap: 15px; }
+.password-form .studio-button { justify-content: space-between; }
+.password-form .studio-button:disabled { opacity: .6; cursor: wait; }
 .client-profile__heading, .client-section__heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; }
 .client-profile__heading h2 { margin: 0; font: 500 32px 'Playfair Display', serif; }
 .client-profile__data { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin: 25px 0 0; }
@@ -242,6 +322,7 @@ async function signOut(): Promise<void> {
 .client-favorite h3 { margin: 7px 0 0; font: 500 22px 'Playfair Display', serif; }
 @media (max-width: 700px) {
   .client-profile__heading, .client-section__heading { align-items: start; flex-direction: column; }
+  .password-section { grid-template-columns: 1fr; }
   .client-profile__data { grid-template-columns: 1fr; }
   .client-booking { align-items: start; flex-wrap: wrap; gap: 14px; }
   .client-booking__details { min-width: calc(100% - 80px); }

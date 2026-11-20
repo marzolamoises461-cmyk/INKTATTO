@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { instanceToPlain } from 'class-transformer';
 import { DataSource, Repository } from 'typeorm';
 import { ArtistsService } from '../artists/artists.service';
@@ -6,7 +6,9 @@ import { User } from '../user/entities/user.entity';
 import { Booking } from './entities/booking.entity';
 import { BookingsService } from './bookings.service';
 import { BookingReferenceImage } from './entities/booking-reference-image.entity';
+import { BookingStatusHistory } from './entities/booking-status-history.entity';
 import { ReferenceImageStorageService } from './reference-image-storage.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('BookingsService', () => {
   let service: BookingsService;
@@ -14,16 +16,18 @@ describe('BookingsService', () => {
     create: jest.Mock;
     save: jest.Mock;
     find: jest.Mock;
-    findOne: jest.Mock;
   };
-  let manager: { create: jest.Mock; save: jest.Mock };
+  let manager: { create: jest.Mock; save: jest.Mock; findOne: jest.Mock };
   let dataSource: { transaction: jest.Mock };
   let artists: { assertCanBook: jest.Mock };
   let storage: { upload: jest.Mock; remove: jest.Mock };
   let images: { find: jest.Mock; findOne: jest.Mock };
+  let statusHistory: { find: jest.Mock };
+  let notifications: { queueBookingEvent: jest.Mock };
 
   const customer = { id: 5, email: 'cliente@ejemplo.com', fullName: 'Cliente' } as User;
-  const pending = {
+  const admin = { id: 7, email: 'admin@ejemplo.com', fullName: 'Admin', role: 'admin' } as User;
+  const makePending = () => ({
     id: 10,
     user: customer,
     status: 'pending',
@@ -33,18 +37,24 @@ describe('BookingsService', () => {
     bodyArea: 'Brazo',
     size: 'Mediano',
     idea: 'Diseño de prueba suficientemente largo',
-  } as Booking;
+    quotedPrice: null,
+    depositAmount: null,
+    adminNotes: null,
+    cancellationReason: null,
+    rejectionReason: null,
+    cancelledAt: null,
+  } as Booking);
 
   beforeEach(() => {
     repository = {
       create: jest.fn((value: Partial<Booking>) => value),
       save: jest.fn(async (value: Booking) => value),
       find: jest.fn().mockResolvedValue([]),
-      findOne: jest.fn().mockResolvedValue(pending),
     };
     manager = {
       create: jest.fn((_entity: unknown, value: Partial<Booking>) => value),
       save: jest.fn(async (_entity: unknown, value: Booking) => value),
+      findOne: jest.fn().mockResolvedValue(makePending()),
     };
     dataSource = {
       transaction: jest.fn((callback: (transactionManager: typeof manager) => unknown) => callback(manager)),
@@ -63,12 +73,16 @@ describe('BookingsService', () => {
       remove: jest.fn().mockResolvedValue(undefined),
     };
     images = { find: jest.fn().mockResolvedValue([]), findOne: jest.fn() };
+    statusHistory = { find: jest.fn().mockResolvedValue([]) };
+    notifications = { queueBookingEvent: jest.fn().mockResolvedValue(undefined) };
     service = new BookingsService(
       repository as unknown as Repository<Booking>,
       images as unknown as Repository<BookingReferenceImage>,
+      statusHistory as unknown as Repository<BookingStatusHistory>,
       dataSource as unknown as DataSource,
       artists as unknown as ArtistsService,
       storage as unknown as ReferenceImageStorageService,
+      notifications as unknown as NotificationsService,
     );
   });
 
@@ -97,22 +111,83 @@ describe('BookingsService', () => {
   });
 
   it('allows the owner to cancel a pending booking', async () => {
-    const result = await service.cancelMine(10, customer.id);
+    const result = await service.cancelMine(10, customer, 'No puedo asistir');
     expect(result.status).toBe('cancelled');
-    expect(repository.save).toHaveBeenCalledWith(pending);
+    expect(result.cancellationReason).toBe('No puedo asistir');
+    expect(manager.save).toHaveBeenCalledWith(BookingStatusHistory, expect.objectContaining({
+      fromStatus: 'pending',
+      toStatus: 'cancelled',
+      actorId: customer.id,
+    }));
+    expect(notifications.queueBookingEvent).toHaveBeenCalledWith(
+      manager, expect.any(Object), 'booking.cancelled', 'No puedo asistir',
+    );
   });
 
   it('prevents another user from cancelling the booking', async () => {
-    await expect(service.cancelMine(10, 999)).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(service.cancelMine(10, { id: 999 } as User, 'No puedo asistir'))
+      .rejects.toBeInstanceOf(ForbiddenException);
   });
 
   it('returns 404 when a booking does not exist', async () => {
-    repository.findOne.mockResolvedValue(null);
-    await expect(service.cancelMine(404, customer.id)).rejects.toBeInstanceOf(NotFoundException);
+    manager.findOne.mockResolvedValue(null);
+    await expect(service.cancelMine(404, customer, 'No puedo asistir')).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('rejects invalid booking status transitions', async () => {
-    pending.status = 'pending';
-    await expect(service.updateStatus(10, { status: 'completed' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.updateStatus(10, { status: 'completed' }, admin))
+      .rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('stores quote details and the responsible admin in status history', async () => {
+    const result = await service.updateStatus(10, {
+      status: 'quoted',
+      quotedPrice: 250000,
+      depositAmount: 50000,
+      adminNotes: 'Trazar en consulta',
+      durationMinutes: 120,
+    }, admin);
+
+    expect(result.status).toBe('quoted');
+    expect(result.quotedPrice).toBe('250000.00');
+    expect(result.depositAmount).toBe('50000.00');
+    expect(result.adminNotes).toBe('Trazar en consulta');
+    expect(result.durationMinutes).toBe(120);
+    expect(artists.assertCanBook).toHaveBeenCalledWith(
+      manager, 'artist-one', '2027-01-15', '10:00:00', 120, 10,
+    );
+    expect(manager.save).toHaveBeenCalledWith(BookingStatusHistory, expect.objectContaining({
+      fromStatus: 'pending',
+      toStatus: 'quoted',
+      actorId: admin.id,
+      actorEmail: admin.email,
+    }));
+    expect(notifications.queueBookingEvent).toHaveBeenCalledWith(
+      manager, expect.any(Object), 'booking.quoted', undefined,
+    );
+  });
+
+  it('rejects a quoted duration that would collide with another booking', async () => {
+    artists.assertCanBook.mockRejectedValue(new ConflictException('El nuevo tiempo estimado se superpone con otra cita'));
+
+    await expect(service.updateStatus(10, {
+      status: 'quoted',
+      quotedPrice: 250000,
+      durationMinutes: 180,
+    }, admin)).rejects.toBeInstanceOf(ConflictException);
+    expect(manager.save).not.toHaveBeenCalled();
+  });
+
+  it('does not expose private admin notes in client booking views', async () => {
+    const result = await service.findMine(customer.id);
+    expect(result).toHaveLength(0);
+    repository.find.mockResolvedValue([{
+      ...makePending(),
+      adminNotes: 'Nota interna',
+      user: customer,
+    }]);
+    const bookings = await service.findMine(customer.id);
+    expect(bookings[0]).not.toHaveProperty('adminNotes');
+    expect(bookings[0].status).toBe('pending');
   });
 });

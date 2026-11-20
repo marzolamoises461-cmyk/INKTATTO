@@ -69,6 +69,19 @@ export function validateEnvironment(
     throw new Error('CORS_ORIGIN debe contener al menos un origen permitido.');
   }
 
+  const frontendUrl = config.FRONTEND_URL;
+  if (frontendUrl !== undefined && String(frontendUrl).trim()) {
+    let parsedFrontendUrl: URL;
+    try {
+      parsedFrontendUrl = new URL(String(frontendUrl).trim());
+    } catch {
+      throw new Error('FRONTEND_URL debe ser una URL válida.');
+    }
+    if (!['http:', 'https:'].includes(parsedFrontendUrl.protocol) || parsedFrontendUrl.username || parsedFrontendUrl.password) {
+      throw new Error('FRONTEND_URL debe usar HTTP o HTTPS y no puede contener credenciales.');
+    }
+  }
+
   return {
     ...config,
     DB_HOST: dbHost,
@@ -80,5 +93,6 @@ export function validateEnvironment(
     DB_PORT: String(dbPort),
     JWT_EXPIRATION: String(jwtExpiration),
     CORS_ORIGIN: corsOrigins.join(','),
+    ...(frontendUrl !== undefined ? { FRONTEND_URL: String(frontendUrl).trim() } : {}),
   };
 }

@@ -2,7 +2,7 @@ import {
   BadRequestException, ConflictException, Injectable, NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, In, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, Not, Repository } from 'typeorm';
 import { Booking } from '../bookings/entities/booking.entity';
 import { ArtistBlock } from './entities/artist-block.entity';
 import { Artist } from './entities/artist.entity';
@@ -197,6 +197,7 @@ export class ArtistsService {
     date: string,
     time: string,
     durationMinutes: number,
+    excludeBookingId?: number,
   ): Promise<Artist> {
     if (!isValidCalendarDate(date)) throw new BadRequestException('La fecha debe tener formato YYYY-MM-DD');
     if (date < todayInBogota()) throw new BadRequestException('La fecha no puede estar en el pasado');
@@ -226,7 +227,12 @@ export class ArtistsService {
     }
 
     const bookings = await manager.find(Booking, {
-      where: { artistId: artist.id, date, status: In(['pending', 'quoted', 'confirmed']) },
+      where: {
+        artistId: artist.id,
+        date,
+        status: In(['pending', 'quoted', 'confirmed']),
+        ...(excludeBookingId !== undefined ? { id: Not(excludeBookingId) } : {}),
+      },
       select: { time: true, durationMinutes: true },
     });
     if (bookings.some((booking) => {

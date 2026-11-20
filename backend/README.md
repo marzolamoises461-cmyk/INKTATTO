@@ -29,6 +29,13 @@ La API mantiene `synchronize: false` en todos los entornos. El esquema se modifi
 - Los objetos deben permanecer privados, sin acceso público ni ACL pública. La API los entrega solamente tras verificar que la cuenta autenticada sea propietaria de la cita o administradora. Se aceptan JPG, PNG y WEBP, máximo 5 MB por imagen y 5 imágenes por cita.
 - El endpoint de creación recibe `multipart/form-data`: los campos de cita más uno o varios campos `images`. La ruta de añadir referencias es `POST /api/bookings/:id/images`.
 
+## Citas y correo
+- El ciclo de estados es `pending -> quoted -> confirmed -> completed`; las solicitudes también pueden quedar `rejected` o `cancelled`. Las transiciones inválidas se rechazan. Las cotizaciones incluyen precio, anticipo opcional y duración estimada; las notas administrativas no se incluyen en las respuestas del cliente.
+- El administrador puede consultar citas en `GET /api/bookings`, cambiar su estado con `PATCH /api/bookings/:id/status` y consultar el historial con `GET /api/bookings/:id/history`. El propietario puede cancelar una solicitud pendiente con `PATCH /api/bookings/:id/cancel`.
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, `SMTP_USER` y `SMTP_PASSWORD` configuran el servidor real de correo; `SMTP_SECURE` indica TLS y `STUDIO_EMAIL` recibe avisos del estudio. `FRONTEND_URL` es la URL base donde está publicada la interfaz y se usa para formar los enlaces de recuperación.
+- Sin SMTP, los mensajes normales permanecen en `notification_outbox` como pendientes y no se marcan como enviados. La recuperación de contraseña requiere `FRONTEND_URL` y SMTP configurado; si falta cualquiera, la API responde con error explícito. No se simulan entregas.
+- Los enlaces de recuperación caducan en 60 minutos, almacenan únicamente el hash del token y se invalidan al usarse. El envío del correo de recuperación es inmediato; las notificaciones de citas y recordatorios se entregan por el despachador en proceso, que intenta ejecutarse cada minuto. Mantén una instancia activa del backend para que se envíen los recordatorios.
+
 ## Crear la cuenta administradora inicial
 Define temporalmente `ADMIN_EMAIL`, `ADMIN_PASSWORD` (12–72 caracteres) y `ADMIN_FULL_NAME` en PowerShell, ejecuta `npm run admin:create` y luego elimina las variables. El comando crea o actualiza esa cuenta con bcrypt y rol admin; no hay endpoint público para elevar privilegios.
 

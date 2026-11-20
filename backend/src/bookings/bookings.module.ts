@@ -5,12 +5,14 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { ArtistsModule } from '../artists/artists.module';
 import { Booking } from './entities/booking.entity';
 import { BookingReferenceImage } from './entities/booking-reference-image.entity';
+import { BookingStatusHistory } from './entities/booking-status-history.entity';
 import { BookingsController } from './bookings.controller';
 import { BookingsService } from './bookings.service';
 import { ReferenceImageStorageService } from './reference-image-storage.service';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Booking, BookingReferenceImage]), ArtistsModule],
+  imports: [TypeOrmModule.forFeature([Booking, BookingReferenceImage, BookingStatusHistory]), ArtistsModule, NotificationsModule],
   controllers: [BookingsController],
   providers: [BookingsService, ReferenceImageStorageService, JwtAuthGuard, RolesGuard],
 })

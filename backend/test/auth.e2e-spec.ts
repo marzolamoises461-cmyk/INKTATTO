@@ -37,7 +37,7 @@ describe('Auth endpoints (e2e contract)', () => {
   it('registers a user and returns a token (201 Created)', async () => {
     await request(app.getHttpServer())
       .post('/api/auth/register')
-      .send({ email: 'a@b.com', password: 'secret1', fullName: 'Test' })
+      .send({ email: 'a@b.com', password: 'secret123', fullName: 'Test' })
       .expect(201)
       .expect(({ body }) => {
         expect(body.token).toBe('token');
@@ -48,14 +48,19 @@ describe('Auth endpoints (e2e contract)', () => {
   it('rejects malformed email and unknown fields', async () => {
     await request(app.getHttpServer())
       .post('/api/auth/register')
-      .send({ email: 'bad', password: 'secret1', fullName: 'Test', role: 'admin' })
+      .send({ email: 'bad', password: 'secret123', fullName: 'Test', role: 'admin' })
+      .expect(400);
+
+    await request(app.getHttpServer())
+      .post('/api/auth/register')
+      .send({ email: 'weak@b.com', password: 'secret1', fullName: 'Test' })
       .expect(400);
   });
 
   it('logs in with a valid payload and returns 200 OK', async () => {
     await request(app.getHttpServer())
       .post('/api/auth/login')
-      .send({ email: 'a@b.com', password: 'secret1' })
+      .send({ email: 'a@b.com', password: 'secret123' })
       .expect(200)
       .expect(({ body }) => expect(body.token).toBe('token'));
   });

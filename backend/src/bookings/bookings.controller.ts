@@ -10,7 +10,8 @@ import { GetUser } from '../auth/decorators/get-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { BookingsService } from './bookings.service';
+import { BookingClientView, BookingsService } from './bookings.service';
+import { CancelBookingDto } from './dto/cancel-booking.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingStatusDto } from './dto/update-booking-status.dto';
 import { Booking } from './entities/booking.entity';
@@ -29,18 +30,22 @@ export class BookingsController {
     @GetUser() user: User,
     @Body() dto: CreateBookingDto,
     @UploadedFiles() files?: Express.Multer.File[],
-  ): Promise<Booking> {
+  ): Promise<BookingClientView> {
     return this.bookings.create(user, dto, files ?? []);
   }
 
   @Get('mine')
-  findMine(@GetUser() user: User): Promise<Booking[]> {
+  findMine(@GetUser() user: User): Promise<BookingClientView[]> {
     return this.bookings.findMine(user.id);
   }
 
   @Patch(':id/cancel')
-  cancelMine(@Param('id', ParseIntPipe) id: number, @GetUser() user: User): Promise<Booking> {
-    return this.bookings.cancelMine(id, user.id);
+  cancelMine(
+    @Param('id', ParseIntPipe) id: number,
+    @GetUser() user: User,
+    @Body() dto: CancelBookingDto,
+  ): Promise<BookingClientView> {
+    return this.bookings.cancelMine(id, user, dto.reason);
   }
 
   @Post(':id/images')
@@ -89,7 +94,18 @@ export class BookingsController {
   @Patch(':id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
-  updateStatus(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateBookingStatusDto): Promise<Booking> {
-    return this.bookings.updateStatus(id, dto);
+  updateStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateBookingStatusDto,
+    @GetUser() user: User,
+  ): Promise<Booking> {
+    return this.bookings.updateStatus(id, dto, user);
+  }
+
+  @Get(':id/history')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  history(@Param('id', ParseIntPipe) id: number) {
+    return this.bookings.history(id);
   }
 }

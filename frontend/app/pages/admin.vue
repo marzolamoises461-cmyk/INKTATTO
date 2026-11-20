@@ -96,18 +96,138 @@
           </ul>
           <p v-else class="admin-help">No hay días bloqueados. Para una ausencia de varios días, crea un bloqueo de día completo por cada fecha.</p>
         </section>
+
+        <section class="admin-card studio-card">
+          <div class="admin-heading">
+            <div>
+              <p class="studio-eyebrow">Solicitudes y seguimiento</p>
+              <h2>Gestión de citas</h2>
+            </div>
+            <button class="studio-button studio-button--outline studio-button--small" type="button" :disabled="bookingLoading" @click="loadBookings">
+              {{ bookingLoading ? 'Actualizando…' : 'Actualizar' }}
+            </button>
+          </div>
+          <p v-if="!adminBookings.length" class="admin-help">No hay solicitudes de cita para gestionar.</p>
+          <div v-else class="admin-booking-list">
+            <article v-for="booking in adminBookings" :key="booking.id" class="admin-booking">
+              <div>
+                <p class="admin-booking__state">{{ bookingStatusLabel(booking.status) }}</p>
+                <h3>{{ booking.user.fullName }} · {{ booking.bodyArea }}</h3>
+                <span>{{ booking.date }} · {{ booking.time.slice(0, 5) }} · {{ booking.artist }} · {{ booking.durationMinutes }} min</span>
+                <span>{{ booking.user.email }}</span>
+                <span v-if="booking.quotedPrice">Cotización {{ formatCurrency(booking.quotedPrice) }} · Anticipo {{ formatCurrency(booking.depositAmount || '0') }}</span>
+              </div>
+              <button class="studio-button studio-button--outline studio-button--small" type="button" @click="selectBooking(booking)">
+                {{ selectedBookingId === booking.id ? 'Seleccionada' : 'Ver / gestionar' }}
+              </button>
+            </article>
+          </div>
+        </section>
+
+        <section v-if="selectedBooking" class="admin-card studio-card">
+          <div class="admin-heading">
+            <div>
+              <p class="studio-eyebrow">Cita #{{ selectedBooking.id }} · {{ selectedBooking.user.fullName }}</p>
+              <h2>{{ selectedBooking.bodyArea }} · {{ selectedBooking.size }}</h2>
+            </div>
+          </div>
+          <p class="admin-help">{{ selectedBooking.idea }}</p>
+          <div v-if="bookingImages.length" class="admin-reference-images">
+            <figure v-for="image in bookingImages" :key="image.id">
+              <img :src="image.previewUrl" :alt="`Referencia ${image.originalName}`" />
+              <figcaption>{{ image.originalName }} · {{ Math.ceil(image.sizeBytes / 1024) }} KB</figcaption>
+            </figure>
+          </div>
+          <p v-else class="admin-help">Esta solicitud no tiene imágenes de referencia.</p>
+          <div v-if="bookingHistory.length" class="admin-history">
+            <h3>Historial de estados</h3>
+            <ol>
+              <li v-for="entry in bookingHistory" :key="entry.id">
+                <strong>{{ bookingStatusLabel(entry.toStatus) }}</strong>
+                <span>{{ formatTimestamp(entry.changedAt) }} · {{ entry.actorEmail || 'Registro histórico' }}</span>
+                <small v-if="entry.note">{{ entry.note }}</small>
+              </li>
+            </ol>
+          </div>
+          <form v-if="nextBookingStatuses(selectedBooking.status).length" class="admin-workflow" @submit.prevent="updateBooking">
+            <label class="studio-field">
+              Siguiente estado
+              <select v-model="workflow.status" required>
+                <option v-for="status in nextBookingStatuses(selectedBooking.status)" :key="status" :value="status">
+                  {{ bookingStatusLabel(status) }}
+                </option>
+              </select>
+            </label>
+            <template v-if="workflow.status === 'quoted'">
+              <label class="studio-field">
+                Precio cotizado (COP)
+                <input v-model.number="workflow.quotedPrice" type="number" min="0" step="0.01" required />
+              </label>
+              <label class="studio-field">
+                Anticipo (COP)
+                <input v-model.number="workflow.depositAmount" type="number" min="0" step="0.01" />
+              </label>
+              <label class="studio-field">
+                Duración estimada (minutos)
+                <input v-model.number="workflow.durationMinutes" type="number" min="30" max="480" step="1" />
+              </label>
+            </template>
+            <label v-if="workflow.status === 'cancelled' || workflow.status === 'rejected'" class="studio-field">
+              Motivo
+              <textarea v-model.trim="workflow.reason" required minlength="3" maxlength="500" />
+            </label>
+            <label class="studio-field admin-workflow__notes">
+              Nota privada para administración
+              <textarea v-model.trim="workflow.adminNotes" maxlength="5000" />
+            </label>
+            <button class="studio-button" type="submit" :disabled="bookingSaving">
+              {{ bookingSaving ? 'Guardando…' : 'Guardar actualización' }} <span>↗</span>
+            </button>
+          </form>
+          <p v-else class="admin-help">Esta cita tiene un estado final y no admite nuevas transiciones.</p>
+        </section>
       </template>
     </main>
   </StudioLayout>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import StudioLayout from '../components/StudioLayout.vue'
 
 interface Artist { id: number; slug: string; displayName: string }
 interface ScheduleWindow { key: number; weekday: number; opensAt: string; closesAt: string }
 interface ArtistBlock { id: number; blockedDate: string; startsAt: string | null; endsAt: string | null; reason: string | null }
+type BookingStatus = 'pending' | 'quoted' | 'confirmed' | 'completed' | 'cancelled' | 'rejected'
+interface AdminBooking {
+  id: number
+  artist: string
+  date: string
+  time: string
+  durationMinutes: number
+  bodyArea: string
+  size: string
+  idea: string
+  status: BookingStatus
+  quotedPrice: string | null
+  depositAmount: string | null
+  adminNotes: string | null
+  user: { id: number; email: string; fullName: string }
+}
+interface AdminReferenceImage {
+  id: number
+  originalName: string
+  sizeBytes: number
+  url: string
+  previewUrl: string
+}
+interface BookingHistoryEntry {
+  id: number
+  toStatus: BookingStatus
+  actorEmail: string | null
+  note: string | null
+  changedAt: string
+}
 
 const { user, api, initialize } = useAuth()
 const weekdays = [
@@ -120,16 +240,31 @@ const weekdays = [
   { value: 6, label: 'Sábado' },
 ]
 const artists = ref<Artist[]>([])
+const adminBookings = ref<AdminBooking[]>([])
 const selectedArtistId = ref(0)
+const selectedBookingId = ref(0)
+const selectedBooking = computed(() => adminBookings.value.find((booking) => booking.id === selectedBookingId.value) ?? null)
+const bookingImages = ref<AdminReferenceImage[]>([])
+const bookingHistory = ref<BookingHistoryEntry[]>([])
 const windows = ref<ScheduleWindow[]>([])
 const blocks = ref<ArtistBlock[]>([])
 const loading = ref(true)
 const authorized = ref(false)
 const saving = ref(false)
+const bookingLoading = ref(false)
+const bookingSaving = ref(false)
 const message = ref('')
 const isError = ref(false)
 let nextWindowKey = 0
 const blockForm = reactive({ date: '', startsAt: '', endsAt: '', reason: '' })
+const workflow = reactive({
+  status: 'quoted' as BookingStatus,
+  quotedPrice: 0,
+  depositAmount: 0,
+  durationMinutes: 60,
+  adminNotes: '',
+  reason: '',
+})
 
 onMounted(async () => {
   await initialize()
@@ -146,11 +281,16 @@ onMounted(async () => {
   try {
     artists.value = await api<Artist[]>('/artists')
     selectedArtistId.value = artists.value[0]?.id ?? 0
+    await loadBookings()
   } catch {
     setMessage('No se pudieron cargar los artistas.', true)
   } finally {
     loading.value = false
   }
+})
+
+onBeforeUnmount(() => {
+  bookingImages.value.forEach((image) => URL.revokeObjectURL(image.previewUrl))
 })
 
 watch(selectedArtistId, async (id) => {
@@ -233,6 +373,105 @@ async function removeBlock(blockId: number): Promise<void> {
   }
 }
 
+async function loadBookings(): Promise<void> {
+  bookingLoading.value = true
+  try {
+    adminBookings.value = await api<AdminBooking[]>('/bookings')
+  } catch (error: unknown) {
+    setMessage(errorMessage(error, 'No se pudieron cargar las solicitudes de cita.'), true)
+  } finally {
+    bookingLoading.value = false
+  }
+}
+
+async function selectBooking(booking: AdminBooking): Promise<void> {
+  bookingImages.value.forEach((image) => URL.revokeObjectURL(image.previewUrl))
+  selectedBookingId.value = booking.id
+  workflow.status = nextBookingStatuses(booking.status)[0] ?? booking.status
+  workflow.quotedPrice = Number(booking.quotedPrice ?? 0)
+  workflow.depositAmount = Number(booking.depositAmount ?? 0)
+  workflow.durationMinutes = booking.durationMinutes
+  workflow.adminNotes = booking.adminNotes ?? ''
+  workflow.reason = ''
+  bookingImages.value = []
+  bookingHistory.value = []
+  try {
+    const [images, history] = await Promise.all([
+      api<Array<Omit<AdminReferenceImage, 'previewUrl'>>>(`/bookings/${booking.id}/images`),
+      api<BookingHistoryEntry[]>(`/bookings/${booking.id}/history`),
+    ])
+    bookingImages.value = await Promise.all(images.map(async (image) => ({
+      ...image,
+      previewUrl: URL.createObjectURL(await api<Blob>(image.url, { responseType: 'blob' })),
+    })))
+    bookingHistory.value = history
+  } catch (error: unknown) {
+    setMessage(errorMessage(error, 'No se pudieron cargar las imágenes o el historial de la cita.'), true)
+  }
+}
+
+async function updateBooking(): Promise<void> {
+  if (!selectedBooking.value) return
+  bookingSaving.value = true
+  try {
+    const body = {
+      status: workflow.status,
+      ...(workflow.status === 'quoted' ? {
+        quotedPrice: workflow.quotedPrice,
+        depositAmount: workflow.depositAmount,
+        durationMinutes: workflow.durationMinutes,
+      } : {}),
+      ...(workflow.status === 'cancelled' || workflow.status === 'rejected' ? { reason: workflow.reason } : {}),
+      ...(workflow.adminNotes ? { adminNotes: workflow.adminNotes } : {}),
+    }
+    await api(`/bookings/${selectedBooking.value.id}/status`, { method: 'PATCH', body })
+    setMessage('La cita se actualizó y el cambio quedó registrado.')
+    await loadBookings()
+    const refreshed = selectedBooking.value
+    if (refreshed) await selectBooking(refreshed)
+  } catch (error: unknown) {
+    setMessage(errorMessage(error, 'No se pudo actualizar la cita.'), true)
+  } finally {
+    bookingSaving.value = false
+  }
+}
+
+function nextBookingStatuses(status: BookingStatus): BookingStatus[] {
+  const transitions: Record<BookingStatus, BookingStatus[]> = {
+    pending: ['quoted', 'rejected', 'cancelled'],
+    quoted: ['confirmed', 'rejected', 'cancelled'],
+    confirmed: ['completed', 'cancelled'],
+    completed: [],
+    cancelled: [],
+    rejected: [],
+  }
+  return transitions[status]
+}
+
+function bookingStatusLabel(status: BookingStatus): string {
+  const labels: Record<BookingStatus, string> = {
+    pending: 'Pendiente',
+    quoted: 'Cotizada',
+    confirmed: 'Confirmada',
+    completed: 'Realizada',
+    cancelled: 'Cancelada',
+    rejected: 'Rechazada',
+  }
+  return labels[status]
+}
+
+function formatCurrency(value: string): string {
+  return new Intl.NumberFormat('es-CO', {
+    style: 'currency',
+    currency: 'COP',
+    maximumFractionDigits: 0,
+  }).format(Number(value))
+}
+
+function formatTimestamp(value: string): string {
+  return new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+}
+
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat('es-CO', { dateStyle: 'long', timeZone: 'UTC' }).format(new Date(`${value}T12:00:00Z`))
 }
@@ -263,13 +502,34 @@ function setMessage(value: string, error = false): void {
 .admin-block-list li { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px; border-top: 1px solid var(--studio-line); color: var(--studio-muted); font-size: 12px; }
 .admin-block-list strong { margin-right: 12px; color: var(--studio-paper); }
 .admin-block-list small { display: block; margin-top: 5px; }
+.admin-booking-list { display: grid; gap: 8px; margin-top: 20px; }
+.admin-booking { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 14px; border: 1px solid var(--studio-line); }
+.admin-booking h3 { margin: 0 0 6px; font: 500 18px 'Playfair Display', serif; }
+.admin-booking span { display: block; margin-top: 3px; color: var(--studio-muted); font-size: 11px; }
+.admin-booking__state { margin: 0 0 6px; color: var(--studio-red); font: 9px 'DM Mono', monospace; letter-spacing: .1em; text-transform: uppercase; }
+.admin-reference-images { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0; }
+.admin-reference-images figure { width: min(190px, 42vw); margin: 0; }
+.admin-reference-images img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border: 1px solid var(--studio-line); }
+.admin-reference-images figcaption { margin-top: 5px; color: var(--studio-muted); font-size: 10px; }
+.admin-history { margin-top: 26px; }
+.admin-history h3 { font: 500 20px 'Playfair Display', serif; }
+.admin-history ol { display: grid; gap: 10px; margin: 0; padding-left: 20px; }
+.admin-history li { padding-left: 5px; color: var(--studio-muted); font-size: 11px; }
+.admin-history li strong, .admin-history li span, .admin-history li small { display: block; margin-bottom: 4px; }
+.admin-history li strong { color: var(--studio-paper); }
+.admin-workflow { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 28px; }
+.admin-workflow__notes { grid-column: 1 / -1; }
+.admin-workflow .studio-button { justify-self: start; }
 @media (max-width: 760px) {
   .admin-window { grid-template-columns: 1fr 1fr; }
   .admin-block-form { grid-template-columns: 1fr 1fr; }
   .admin-heading { align-items: start; flex-direction: column; }
+  .admin-workflow { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 460px) {
   .admin-window, .admin-block-form { grid-template-columns: 1fr; }
   .admin-block-list li { align-items: start; flex-direction: column; }
+  .admin-booking { align-items: start; flex-direction: column; }
+  .admin-workflow { grid-template-columns: 1fr; }
 }
 </style>

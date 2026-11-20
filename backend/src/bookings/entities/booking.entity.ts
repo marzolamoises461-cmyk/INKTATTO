@@ -1,4 +1,7 @@
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { Artist } from '../../artists/entities/artist.entity';
 import { User } from '../../user/entities/user.entity';
 import { BookingReferenceImage } from './booking-reference-image.entity';
@@ -49,6 +52,30 @@ export class Booking {
   @Column({ type: 'enum', enum: ['pending', 'quoted', 'confirmed', 'completed', 'cancelled', 'rejected'], default: 'pending' })
   status!: BookingStatus;
 
+  @Column({ name: 'quoted_price', type: 'decimal', precision: 14, scale: 2, nullable: true })
+  quotedPrice!: string | null;
+
+  @Column({ name: 'deposit_amount', type: 'decimal', precision: 14, scale: 2, nullable: true })
+  depositAmount!: string | null;
+
+  @Column({ name: 'admin_notes', type: 'text', nullable: true })
+  adminNotes!: string | null;
+
+  @Column({ name: 'cancellation_reason', type: 'varchar', length: 500, nullable: true })
+  cancellationReason!: string | null;
+
+  @Column({ name: 'rejection_reason', type: 'varchar', length: 500, nullable: true })
+  rejectionReason!: string | null;
+
+  @Column({ name: 'cancelled_at', type: 'datetime', precision: 6, nullable: true })
+  cancelledAt!: Date | null;
+
+  @Column({ name: 'reminder_sent_at', type: 'datetime', precision: 6, nullable: true })
+  reminderSentAt!: Date | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
+
+  @UpdateDateColumn({ name: 'updated_at', type: 'datetime', precision: 6 })
+  updatedAt!: Date;
 }

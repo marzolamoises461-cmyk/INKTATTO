@@ -8,6 +8,7 @@ import { BookingsModule } from './bookings/bookings.module';
 import { ArtistsModule } from './artists/artists.module';
 import { HealthController } from './health/health.controller';
 import { validateEnvironment } from './config/env.validation';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   controllers: [HealthController],
@@ -41,6 +42,7 @@ import { validateEnvironment } from './config/env.validation';
     ExampleModule,
     BookingsModule,
     ArtistsModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}
