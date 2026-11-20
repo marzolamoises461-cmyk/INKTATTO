@@ -5,9 +5,12 @@ import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { ExampleModule } from './example/example.module';
 import { BookingsModule } from './bookings/bookings.module';
+import { ArtistsModule } from './artists/artists.module';
+import { HealthController } from './health/health.controller';
 import { validateEnvironment } from './config/env.validation';
 
 @Module({
+  controllers: [HealthController],
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
@@ -37,6 +40,7 @@ import { validateEnvironment } from './config/env.validation';
     AuthModule,
     ExampleModule,
     BookingsModule,
+    ArtistsModule,
   ],
 })
 export class AppModule {}

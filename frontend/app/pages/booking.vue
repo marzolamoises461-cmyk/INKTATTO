@@ -37,28 +37,64 @@
                 Tatuador/a *
                 <select v-model="form.artist" name="artist" required>
                   <option disabled value="">Selecciona un perfil</option>
-                  <option v-for="artist in artistProfiles" :key="artist.slug" :value="artist.slug">{{ artist.label }} · {{ artist.specialty }}</option>
+                  <option v-for="artist in artists" :key="artist.slug" :value="artist.slug">{{ artist.displayName }}</option>
                 </select>
               </label>
               <label class="studio-field">
                 Fecha preferida *
                 <input v-model="form.date" name="date" type="date" :min="minDate" required />
               </label>
+              <label class="studio-field">
+                Duración estimada
+                <select v-model.number="form.durationMinutes" name="durationMinutes">
+                  <option :value="60">1 hora</option>
+                  <option :value="120">2 horas</option>
+                  <option :value="180">3 horas</option>
+                </select>
+              </label>
               <fieldset class="booking-time">
                 <legend class="studio-field__legend">Horario preferido *</legend>
-                <div class="booking-time__options">
+                <p v-if="availabilityLoading" class="booking-time__message">Consultando disponibilidad...</p>
+                <p v-else-if="availabilityMessage" class="booking-time__message booking-time__message--error" role="alert">{{ availabilityMessage }}</p>
+                <p v-else-if="!form.artist || !form.date" class="booking-time__message">Selecciona artista y fecha para consultar horarios.</p>
+                <p v-else-if="!timeSlots.length" class="booking-time__message">No hay horarios disponibles para esta fecha y duración.</p>
+                <div v-else class="booking-time__options">
                   <label v-for="time in timeSlots" :key="time" :class="{ 'is-selected': form.time === time }">
                     <input v-model="form.time" type="radio" name="time" :value="time" required />
                     <span>{{ time }}</span>
                   </label>
                 </div>
-                <p>Opciones orientativas; el estudio debe confirmar disponibilidad.</p>
+                <p>La disponibilidad puede cambiar antes de que el estudio confirme la solicitud.</p>
               </fieldset>
             </div>
           </section>
 
           <section class="booking-step">
-            <p class="booking-step__number">03 / Tu idea</p>
+            <p class="booking-step__number">03 / Referencias visuales</p>
+            <label class="studio-field">
+              Imágenes del tatuaje (1 a 5, JPG, PNG o WEBP; máximo 5 MB cada una) *
+              <input
+                type="file"
+                name="images"
+                accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                multiple
+                :required="selectedFiles.length === 0"
+                @change="handleFiles"
+              />
+            </label>
+            <div v-if="imagePreviews.length" class="booking-image-previews">
+              <figure v-for="(preview, index) in imagePreviews" :key="preview.url">
+                <img :src="preview.url" :alt="`Vista previa ${index + 1}: ${preview.file.name}`" />
+                <figcaption>
+                  <span>{{ preview.file.name }}</span>
+                  <button type="button" :aria-label="`Quitar ${preview.file.name}`" @click="removeImage(index)">Quitar</button>
+                </figcaption>
+              </figure>
+            </div>
+          </section>
+
+          <section class="booking-step">
+            <p class="booking-step__number">04 / Tu idea</p>
             <div class="booking-fields booking-fields--two">
               <label class="studio-field">
                 Zona del cuerpo *
@@ -84,7 +120,7 @@
 
           <p v-if="formError" class="booking-error" role="alert">{{ formError }}</p>
           <p v-if="confirmation" class="studio-notice" role="status">{{ confirmation }}</p>
-          <button class="studio-button booking-submit" type="submit" :disabled="submitting">{{ submitting ? 'Enviando…' : 'Enviar solicitud al estudio' }} <span>↗</span></button>
+          <button class="studio-button booking-submit" type="submit" :disabled="submitting || availabilityLoading">{{ submitting ? 'Enviando…' : 'Enviar solicitud al estudio' }} <span>↗</span></button>
         </form>
 
         <aside class="booking-summary studio-card">
@@ -94,6 +130,7 @@
             <div><dt>Artista</dt><dd>{{ artistLabel || 'Por elegir' }}</dd></div>
             <div><dt>Fecha</dt><dd>{{ formattedDate || 'Por elegir' }}</dd></div>
             <div><dt>Horario</dt><dd>{{ form.time || 'Por elegir' }}</dd></div>
+            <div><dt>Duración</dt><dd>{{ form.durationMinutes / 60 }} h</dd></div>
             <div><dt>Zona</dt><dd>{{ form.bodyArea || 'Por elegir' }}</dd></div>
             <div><dt>Tamaño</dt><dd>{{ form.size || 'Por elegir' }}</dd></div>
           </dl>
@@ -106,27 +143,44 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import StudioLayout from '../components/StudioLayout.vue'
-import { artistProfiles } from '../data/studio'
 
 const route = useRoute()
 const { user, api, initialize } = useAuth()
-const timeSlots = ['10:00', '12:00', '15:00', '17:00']
 const bodyAreas = ['Brazo', 'Espalda', 'Pierna', 'Hombro', 'Pecho', 'Costillas', 'Otra zona']
 const sizes = ['Pequeño · hasta 8 cm', 'Mediano · 8–18 cm', 'Grande · más de 18 cm', 'Por definir en consulta']
-const form = reactive({ name: '', email: '', artist: '', date: '', time: '', bodyArea: '', size: '', idea: '' })
+interface ArtistOption { id: number; slug: string; displayName: string }
+const artists = ref<ArtistOption[]>([])
+const timeSlots = ref<string[]>([])
+const form = reactive({ name: '', email: '', artist: '', date: '', time: '', durationMinutes: 60, bodyArea: '', size: '', idea: '' })
 const minDate = ref('')
 const confirmation = ref('')
 const formError = ref('')
+const availabilityMessage = ref('')
+const availabilityLoading = ref(false)
 const submitting = ref(false)
+const selectedFiles = ref<File[]>([])
+const imagePreviews = ref<Array<{ file: File; url: string }>>([])
+let availabilityRequest = 0
 
 onMounted(async () => {
-  const today = new Date()
-  minDate.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  const dateParts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Bogota',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date())
+  const datePart = (type: Intl.DateTimeFormatPartTypes) => dateParts.find((part) => part.type === type)?.value ?? ''
+  minDate.value = `${datePart('year')}-${datePart('month')}-${datePart('day')}`
   const requestedArtist = String(route.query.artist ?? '')
-  if (artistProfiles.some((artist) => artist.slug === requestedArtist)) form.artist = requestedArtist
+  try {
+    artists.value = await api<ArtistOption[]>('/artists')
+    if (artists.value.some((artist) => artist.slug === requestedArtist)) form.artist = requestedArtist
+  } catch {
+    availabilityMessage.value = 'No se pudo cargar la lista de artistas. Inténtalo de nuevo más tarde.'
+  }
   await initialize()
   if (user.value) {
     form.name = user.value.fullName
@@ -134,10 +188,66 @@ onMounted(async () => {
   }
 })
 
-const artistLabel = computed(() => artistProfiles.find((artist) => artist.slug === form.artist)?.label ?? '')
+watch(
+  () => [form.artist, form.date, form.durationMinutes] as const,
+  async ([artist, date, duration]) => {
+    const requestId = ++availabilityRequest
+    timeSlots.value = []
+    availabilityLoading.value = false
+    form.time = ''
+    availabilityMessage.value = ''
+    if (!artist || !date) return
+    availabilityLoading.value = true
+    try {
+      const result = await api<{ date: string; slots: string[] }>(
+        `/artists/${encodeURIComponent(artist)}/availability?date=${encodeURIComponent(date)}&durationMinutes=${duration}`,
+      )
+      if (requestId === availabilityRequest) timeSlots.value = result.slots
+    } catch {
+      if (requestId === availabilityRequest) {
+        availabilityMessage.value = 'No se pudo consultar la agenda del artista.'
+      }
+    } finally {
+      if (requestId === availabilityRequest) availabilityLoading.value = false
+    }
+  },
+)
+
+const artistLabel = computed(() => artists.value.find((artist) => artist.slug === form.artist)?.displayName ?? '')
 const formattedDate = computed(() => form.date
   ? new Intl.DateTimeFormat('es-CO', { dateStyle: 'long' }).format(new Date(`${form.date}T12:00:00`))
   : '')
+
+function handleFiles(event: Event) {
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files ?? [])
+  const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
+  if (files.length < 1 || files.length > 5) {
+    formError.value = 'Adjunta entre 1 y 5 imágenes.'
+    input.value = ''
+    return
+  }
+  if (files.some((file) => !allowedTypes.has(file.type) || file.size > 5 * 1024 * 1024)) {
+    formError.value = 'Cada imagen debe ser JPG, PNG o WEBP y pesar máximo 5 MB.'
+    input.value = ''
+    return
+  }
+  formError.value = ''
+  setSelectedFiles(files)
+}
+
+function setSelectedFiles(files: File[]) {
+  imagePreviews.value.forEach((preview) => URL.revokeObjectURL(preview.url))
+  selectedFiles.value = files
+  imagePreviews.value = files.map((file) => ({ file, url: URL.createObjectURL(file) }))
+}
+
+function removeImage(index: number) {
+  const remaining = selectedFiles.value.filter((_, fileIndex) => fileIndex !== index)
+  setSelectedFiles(remaining)
+  const input = document.querySelector<HTMLInputElement>('input[name="images"]')
+  if (input) input.value = ''
+}
 
 async function submitRequest() {
   formError.value = ''
@@ -146,8 +256,8 @@ async function submitRequest() {
     formError.value = 'Inicia sesión para enviar y consultar tus solicitudes.'
     return
   }
-  if (!form.artist || !form.date || !form.time || !form.bodyArea || !form.size || form.idea.length < 10) {
-    formError.value = 'Completa todos los campos obligatorios. La idea debe tener al menos 10 caracteres.'
+  if (!form.artist || !form.date || !form.time || !form.bodyArea || !form.size || form.idea.length < 10 || selectedFiles.value.length < 1) {
+    formError.value = 'Completa todos los campos y adjunta al menos una imagen. La idea debe tener al menos 10 caracteres.'
     return
   }
   if (form.date < minDate.value) {
@@ -156,19 +266,23 @@ async function submitRequest() {
   }
   submitting.value = true
   try {
+    const payload = new FormData()
+    payload.append('artist', form.artist)
+    payload.append('date', form.date)
+    payload.append('time', form.time)
+    payload.append('durationMinutes', String(form.durationMinutes))
+    payload.append('bodyArea', form.bodyArea)
+    payload.append('size', form.size)
+    payload.append('idea', form.idea)
+    selectedFiles.value.forEach((file) => payload.append('images', file))
     await api('/bookings', {
       method: 'POST',
-      body: {
-        artist: form.artist,
-        date: form.date,
-        time: form.time,
-        bodyArea: form.bodyArea,
-        size: form.size,
-        idea: form.idea,
-      },
+      body: payload,
     })
     confirmation.value = '¡Solicitud enviada! Quedó guardada en la base de datos del estudio como pendiente. El equipo debe confirmar la fecha y el horario.'
     form.idea = ''
+    form.time = ''
+    setSelectedFiles([])
   } catch (error: unknown) {
     const detail = (error as { data?: { message?: string | string[] } }).data?.message
     formError.value = Array.isArray(detail) ? detail.join('. ') : detail ?? 'No se pudo enviar la solicitud. Comprueba tu conexión e inténtalo de nuevo.'
@@ -289,11 +403,68 @@ async function submitRequest() {
   outline: 1px solid var(--studio-red);
 }
 
+.booking-time__message {
+  margin: 0;
+  color: var(--studio-muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.booking-time__message--error {
+  color: #f09191;
+}
+
 .booking-time > p {
   margin: 10px 0 0;
   color: #858885;
   font-size: 11px;
   line-height: 1.6;
+}
+
+.booking-image-previews {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.booking-image-previews figure {
+  min-width: 0;
+  margin: 0;
+  border: 1px solid var(--studio-line);
+  background: rgba(0, 0, 0, .2);
+}
+
+.booking-image-previews img {
+  display: block;
+  width: 100%;
+  height: 125px;
+  object-fit: cover;
+}
+
+.booking-image-previews figcaption {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  color: var(--studio-muted);
+  font: 9px 'DM Mono', monospace;
+}
+
+.booking-image-previews figcaption span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.booking-image-previews button {
+  flex: 0 0 auto;
+  border: 0;
+  background: none;
+  color: #f09191;
+  cursor: pointer;
+  font: inherit;
 }
 
 .booking-idea {

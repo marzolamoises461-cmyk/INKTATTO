@@ -22,6 +22,13 @@ La API requiere `DB_HOST`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE` y `JWT_SE
 - `npm run migration:revert`: revierte la última migración; puede borrar datos según el cambio.
 La API mantiene `synchronize: false` en todos los entornos. El esquema se modifica mediante migraciones versionadas.
 
+## Agenda y referencias de tatuaje
+- Los perfiles de artista se crean con la migración `CreateArtistSchedules`; no se asigna disponibilidad por defecto. El administrador debe configurar cada semana con `PUT /api/artists/:id/schedule`, con ventanas de 24 horas (`weekday`: domingo `0` a sábado `6`).
+- Días libres y bloqueos parciales se administran con `POST /api/artists/:id/blocks` y `DELETE /api/artists/:id/blocks/:blockId`. La consulta pública es `GET /api/artists/:slug/availability?date=YYYY-MM-DD&durationMinutes=60`.
+- Para adjuntar referencias configura un bucket S3-compatible privado y define `OBJECT_STORAGE_ENDPOINT`, `OBJECT_STORAGE_BUCKET`, `OBJECT_STORAGE_REGION`, `OBJECT_STORAGE_ACCESS_KEY` y `OBJECT_STORAGE_SECRET_KEY`. La API falla explícitamente si falta configuración; nunca convierte la carga en un éxito simulado.
+- Los objetos deben permanecer privados, sin acceso público ni ACL pública. La API los entrega solamente tras verificar que la cuenta autenticada sea propietaria de la cita o administradora. Se aceptan JPG, PNG y WEBP, máximo 5 MB por imagen y 5 imágenes por cita.
+- El endpoint de creación recibe `multipart/form-data`: los campos de cita más uno o varios campos `images`. La ruta de añadir referencias es `POST /api/bookings/:id/images`.
+
 ## Crear la cuenta administradora inicial
 Define temporalmente `ADMIN_EMAIL`, `ADMIN_PASSWORD` (12–72 caracteres) y `ADMIN_FULL_NAME` en PowerShell, ejecuta `npm run admin:create` y luego elimina las variables. El comando crea o actualiza esa cuenta con bcrypt y rol admin; no hay endpoint público para elevar privilegios.
 
