@@ -14,8 +14,9 @@ describe('UpdateStaffMemberDto', () => {
     expect(errors.some((error) => error.property === 'name')).toBe(true);
   });
 
-  it('rejects unknown properties through the global whitelist contract', async () => {
+  it('rejects unknown properties using the same whitelist options as the API', async () => {
     const dto = plainToInstance(UpdateStaffMemberDto, { unexpected: true });
-    expect(dto).not.toHaveProperty('unexpected');
+    const errors = await validate(dto, { whitelist: true, forbidNonWhitelisted: true });
+    expect(errors.some((error) => error.property === 'unexpected')).toBe(true);
   });
 });
