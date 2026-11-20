@@ -21,8 +21,8 @@ describe('BookingsService', () => {
       createQueryBuilder: jest.fn(() => ({ where: jest.fn().mockReturnThis(), andWhere: jest.fn().mockReturnThis(), getOne: jest.fn().mockResolvedValue(null) })),
     };
     staffRepo = { findOne: jest.fn().mockResolvedValue(staff) };
-    const manager = { getRepository: (entity: unknown) => entity === StaffMember ? staffRepo : bookingRepo };
-    const dataSource = { transaction: (callback: (manager: typeof manager) => unknown) => callback(manager), getRepository: () => staffRepo } as unknown as DataSource;
+    const manager = { getRepository: (entity: unknown): any => entity === StaffMember ? staffRepo : bookingRepo };
+    const dataSource = { transaction: (callback: (manager: { getRepository: (entity: unknown) => any }) => unknown) => callback(manager), getRepository: () => staffRepo } as unknown as DataSource;
     service = new BookingsService(bookingRepo as unknown as Repository<Booking>, dataSource);
   });
   afterEach(() => jest.useRealTimers());
