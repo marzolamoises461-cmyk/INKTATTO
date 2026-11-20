@@ -22,6 +22,7 @@
         <NuxtLink to="/booking" :class="{ 'is-active': active === 'booking' }">Reserva</NuxtLink>
         <NuxtLink to="/contact" :class="{ 'is-active': active === 'contact' }">Contacto</NuxtLink>
         <NuxtLink to="/profile" :class="{ 'is-active': active === 'profile' }">Mi perfil</NuxtLink>
+        <NuxtLink v-if="user?.role === 'admin'" to="/admin" :class="{ 'is-active': active === 'admin' }">Administración</NuxtLink>
         <NuxtLink to="/login" :class="{ 'is-active': active === 'login' }">Iniciar sesión</NuxtLink>
       </nav>
       <NuxtLink class="studio-header__cta" to="/booking">Agendar sesión <span aria-hidden="true">↗</span></NuxtLink>
@@ -45,11 +46,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 
 defineProps<{ active?: string }>()
 
 const menuOpen = ref(false)
+const { user, initialize } = useAuth()
+
+onMounted(initialize)
 </script>
 
 <style>

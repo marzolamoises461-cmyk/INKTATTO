@@ -84,6 +84,16 @@ export class ArtistsService {
     return this.artists.find({ where: { isActive: true }, order: { displayName: 'ASC' } });
   }
 
+  async schedule(artistId: number): Promise<ArtistSchedule[]> {
+    await this.requireArtist(artistId);
+    return this.schedules.find({ where: { artistId }, order: { weekday: 'ASC', opensAt: 'ASC' } });
+  }
+
+  async listBlocks(artistId: number): Promise<ArtistBlock[]> {
+    await this.requireArtist(artistId);
+    return this.blocks.find({ where: { artistId }, order: { blockedDate: 'ASC', startsAt: 'ASC' } });
+  }
+
   async availability(
     slug: string,
     date: string,
@@ -137,8 +147,7 @@ export class ArtistsService {
     artistId: number,
     windows: Array<{ weekday: number; opensAt: string; closesAt: string }>,
   ): Promise<ArtistSchedule[]> {
-    const artist = await this.artists.findOneBy({ id: artistId });
-    if (!artist) throw new NotFoundException('Artista no encontrado');
+    await this.requireArtist(artistId);
     for (const window of windows) {
       if (minutesOfDay(window.opensAt) >= minutesOfDay(window.closesAt)) {
         throw new BadRequestException('La hora de cierre debe ser posterior a la apertura');
@@ -164,8 +173,7 @@ export class ArtistsService {
     if (dto.startsAt && dto.endsAt && minutesOfDay(dto.startsAt) >= minutesOfDay(dto.endsAt)) {
       throw new BadRequestException('La hora final debe ser posterior a la inicial');
     }
-    const artist = await this.artists.findOneBy({ id: artistId });
-    if (!artist) throw new NotFoundException('Artista no encontrado');
+    await this.requireArtist(artistId);
     return this.blocks.save(this.blocks.create({
       artistId, blockedDate: dto.date, startsAt: dto.startsAt ?? null,
       endsAt: dto.endsAt ?? null, reason: dto.reason ?? null,
@@ -175,6 +183,12 @@ export class ArtistsService {
   async removeBlock(artistId: number, blockId: number): Promise<void> {
     const result = await this.blocks.delete({ id: blockId, artistId });
     if (!result.affected) throw new NotFoundException('Bloqueo no encontrado');
+  }
+
+  private async requireArtist(artistId: number): Promise<Artist> {
+    const artist = await this.artists.findOneBy({ id: artistId });
+    if (!artist) throw new NotFoundException('Artista no encontrado');
+    return artist;
   }
 
   async assertCanBook(

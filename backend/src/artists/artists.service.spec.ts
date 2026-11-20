@@ -42,6 +42,20 @@ describe('ArtistsService', () => {
     await expect(service.availability('faver', '2027-02-30')).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it('loads the selected artist schedule and blocks for administration', async () => {
+    const schedule = [{ artistId: artist.id, weekday: 1, opensAt: '09:00', closesAt: '17:00' }];
+    const block = [{ artistId: artist.id, blockedDate: '2027-01-18', startsAt: null, endsAt: null }];
+    schedules.find.mockResolvedValue(schedule);
+    blocks.find.mockResolvedValue(block);
+
+    await expect(service.schedule(artist.id)).resolves.toBe(schedule);
+    await expect(service.listBlocks(artist.id)).resolves.toBe(block);
+    expect(schedules.find).toHaveBeenCalledWith({
+      where: { artistId: artist.id },
+      order: { weekday: 'ASC', opensAt: 'ASC' },
+    });
+  });
+
   it('rejects overlapping schedule windows before replacing the artist schedule', async () => {
     await expect(service.replaceSchedule(artist.id, [
       { weekday: 5, opensAt: '09:00', closesAt: '12:00' },

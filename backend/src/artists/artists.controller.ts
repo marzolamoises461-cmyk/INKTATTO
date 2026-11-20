@@ -27,6 +27,20 @@ export class ArtistsController {
     return this.artists.availability(slug, date, duration);
   }
 
+  @Get(':id/schedule')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  schedule(@Param('id', ParseIntPipe) id: number) {
+    return this.artists.schedule(id);
+  }
+
+  @Get(':id/blocks')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  listBlocks(@Param('id', ParseIntPipe) id: number) {
+    return this.artists.listBlocks(id);
+  }
+
   @Put(':id/schedule')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')

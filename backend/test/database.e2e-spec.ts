@@ -19,6 +19,7 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
   let adminToken = '';
   let bookingOwnerToken = '';
   let artistId = 0;
+  let blockId = 0;
   let bookingId = 0;
   let workflowBookingId = 0;
 
@@ -87,6 +88,11 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
   });
 
   afterAll(async () => {
+    if (app && adminToken && artistId && blockId) {
+      await request(app.getHttpServer())
+        .delete(`/api/artists/${artistId}/blocks/${blockId}`)
+        .set('Authorization', `Bearer ${adminToken}`);
+    }
     if (app && adminToken && artistId) {
       await request(app.getHttpServer())
         .put(`/api/artists/${artistId}/schedule`)
@@ -154,6 +160,32 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
         })),
       })
       .expect(200);
+    const savedSchedule = await request(app!.getHttpServer())
+      .get(`/api/artists/${artistId}/schedule`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(savedSchedule.body).toHaveLength(7);
+    await request(app!.getHttpServer())
+      .get(`/api/artists/${artistId}/schedule`)
+      .set('Authorization', `Bearer ${customerToken}`)
+      .expect(403);
+
+    const createdBlock = await request(app!.getHttpServer())
+      .post(`/api/artists/${artistId}/blocks`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ date: '2099-12-30', reason: 'Vacaciones de prueba' })
+      .expect(201);
+    blockId = createdBlock.body.id;
+    const savedBlocks = await request(app!.getHttpServer())
+      .get(`/api/artists/${artistId}/blocks`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(savedBlocks.body.some((block: { id: number }) => block.id === blockId)).toBe(true);
+    await request(app!.getHttpServer())
+      .delete(`/api/artists/${artistId}/blocks/${blockId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    blockId = 0;
 
     const available = await request(app!.getHttpServer())
       .get('/api/artists/faver/availability?date=2099-12-31&durationMinutes=60')
