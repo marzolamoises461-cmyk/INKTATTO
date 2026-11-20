@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { instanceToPlain } from 'class-transformer';
 import { DataSource, Repository } from 'typeorm';
 import { ArtistsService } from '../artists/artists.service';
 import { User } from '../user/entities/user.entity';
@@ -91,6 +92,7 @@ describe('BookingsService', () => {
       user: customer, status: 'pending', artistId: 2,
     }));
     expect(result.status).toBe('pending');
+    expect(() => instanceToPlain(result)).not.toThrow();
     expect(dataSource.transaction).toHaveBeenCalled();
   });
 

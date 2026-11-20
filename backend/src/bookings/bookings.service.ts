@@ -53,9 +53,9 @@ export class BookingsService {
           status: 'pending',
         });
         const savedBooking = await manager.save(Booking, booking);
-        savedBooking.referenceImages = await manager.save(
+        await manager.save(
           BookingReferenceImage,
-          uploads.map((upload) => ({ ...upload, bookingId: savedBooking.id, booking: savedBooking })),
+          uploads.map((upload) => ({ ...upload, bookingId: savedBooking.id })),
         );
         return savedBooking;
       });
