@@ -37,7 +37,7 @@
                 Tatuador/a *
                 <select v-model="form.artist" name="artist" required>
                   <option disabled value="">Selecciona un perfil</option>
-                  <option v-for="artist in artistProfiles" :key="artist.slug" :value="artist.slug">{{ artist.label }} · {{ artist.specialty }}</option>
+                  <option v-for="artist in artists" :key="artist.id" :value="String(artist.id)">{{ artist.name }} · {{ artist.specialty }}</option>
                 </select>
               </label>
               <label class="studio-field">
@@ -46,7 +46,7 @@
               </label>
               <fieldset class="booking-time">
                 <legend class="studio-field__legend">Horario preferido *</legend>
-                <div class="booking-time__options">
+                <p v-if="loadingSlots">Consultando disponibilidad…</p><p v-else-if="!form.artist || !form.date">Selecciona artista y fecha para ver horarios.</p><p v-else-if="!timeSlots.length">No hay horarios disponibles.</p><div v-else class="booking-time__options">
                   <label v-for="time in timeSlots" :key="time" :class="{ 'is-selected': form.time === time }">
                     <input v-model="form.time" type="radio" name="time" :value="time" required />
                     <span>{{ time }}</span>
@@ -106,14 +106,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import StudioLayout from '../components/StudioLayout.vue'
-import { artistProfiles } from '../data/studio'
+
 
 const route = useRoute()
 const { user, api, initialize } = useAuth()
-const timeSlots = ['10:00', '12:00', '15:00', '17:00']
+const timeSlots = ref<string[]>([])\nconst artists = ref<Array<{id:number;name:string;specialty:string}>>([])\nconst referenceImages = ref<File[]>([])\nconst loadingSlots = ref(false)
 const bodyAreas = ['Brazo', 'Espalda', 'Pierna', 'Hombro', 'Pecho', 'Costillas', 'Otra zona']
 const sizes = ['Pequeño · hasta 8 cm', 'Mediano · 8–18 cm', 'Grande · más de 18 cm', 'Por definir en consulta']
 const form = reactive({ name: '', email: '', artist: '', date: '', time: '', bodyArea: '', size: '', idea: '' })
@@ -134,8 +134,8 @@ onMounted(async () => {
   }
 })
 
-const artistLabel = computed(() => artistProfiles.find((artist) => artist.slug === form.artist)?.label ?? '')
-const formattedDate = computed(() => form.date
+const artistLabel = computed(() => artists.value.find((artist) => String(artist.id) === form.artist)?.name ?? '')
+watch([() => form.artist, () => form.date], loadAvailability)\n\nasync function loadAvailability() {\n  form.time = ''; timeSlots.value = [];\n  if (!form.artist || !form.date) return;\n  loadingSlots.value = true;\n  try { const result = await api(`/bookings/availability?artistId=${encodeURIComponent(form.artist)}&date=${encodeURIComponent(form.date)}`) as {slots:string[]}; timeSlots.value = result.slots; }\n  catch (error: unknown) { formError.value = (error as {data?:{message?:string}}).data?.message ?? 'No se pudo consultar la agenda.'; }\n  finally { loadingSlots.value = false; }\n}\nfunction onImagesSelected(event: Event) {\n  const input = event.target as HTMLInputElement; const files = Array.from(input.files ?? []);\n  if (files.length > 5) { formError.value = 'Puedes seleccionar máximo 5 imágenes.'; input.value = ''; return; }\n  if (files.some(file => !['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 5*1024*1024)) { formError.value = 'Cada imagen debe ser JPG, PNG o WEBP y pesar máximo 5 MB.'; input.value = ''; return; }\n  referenceImages.value = files;\n}\n\nconst formattedDate = computed(() => form.date
   ? new Intl.DateTimeFormat('es-CO', { dateStyle: 'long' }).format(new Date(`${form.date}T12:00:00`))
   : '')
 
@@ -159,7 +159,7 @@ async function submitRequest() {
     await api('/bookings', {
       method: 'POST',
       body: {
-        artist: form.artist,
+        artistId: Number(form.artist),
         date: form.date,
         time: form.time,
         bodyArea: form.bodyArea,
