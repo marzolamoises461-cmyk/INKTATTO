@@ -125,8 +125,8 @@ const submitting = ref(false)
 onMounted(async () => {
   const today = new Date()
   minDate.value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-  const requestedArtist = String(route.query.artist ?? '')
-  if (artistProfiles.some((artist) => artist.slug === requestedArtist)) form.artist = requestedArtist
+  const requestedArtist = Number(route.query.artistId ?? '')
+  try { artists.value = await api('/staff') as typeof artists.value; if (artists.value.some(artist => artist.id === requestedArtist)) form.artist = String(requestedArtist) } catch { formError.value = 'No se pudo cargar la lista de artistas.' }
   await initialize()
   if (user.value) {
     form.name = user.value.fullName
@@ -143,7 +143,7 @@ async function submitRequest() {
   formError.value = ''
   confirmation.value = ''
   if (!user.value) {
-    formError.value = 'Inicia sesión para enviar y consultar tus solicitudes.'
+    formError.value = 'Completa tus datos de contacto para enviar la solicitud.'
     return
   }
   if (!form.artist || !form.date || !form.time || !form.bodyArea || !form.size || form.idea.length < 10) {
