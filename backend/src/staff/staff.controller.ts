@@ -1,12 +1,10 @@
 import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, UseGuards } from '@nestjs/common';
-import { PartialType } from '@nestjs/mapped-types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { StaffService } from './staff.service';
 import { StaffMemberDto } from './dto/staff-member.dto';
-
-class UpdateStaffMemberDto extends PartialType(StaffMemberDto) {}
+import { UpdateStaffMemberDto } from './dto/update-staff-member.dto';
 
 @Controller('staff')
 export class StaffController {

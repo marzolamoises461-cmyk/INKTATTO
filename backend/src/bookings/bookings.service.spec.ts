@@ -27,6 +27,7 @@ describe('BookingsService', () => {
   } as Booking;
 
   beforeEach(() => {
+    jest.useRealTimers();
     repository = {
       create: jest.fn((value: Partial<Booking>) => value),
       save: jest.fn(async (value: Booking) => value),
@@ -35,6 +36,8 @@ describe('BookingsService', () => {
     };
     service = new BookingsService(repository as unknown as Repository<Booking>);
   });
+
+  afterEach(() => jest.useRealTimers());
 
   it('creates a pending booking associated with the authenticated user', async () => {
     const result = await service.create(customer, {
@@ -49,10 +52,23 @@ describe('BookingsService', () => {
     expect(result.status).toBe('pending');
   });
 
-  it('rejects a booking date in the past', async () => {
+  it('uses the studio calendar date in America/Bogota, not the UTC date', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-11-20T01:30:00.000Z'));
     await expect(service.create(customer, {
       artist: 'artist-one',
-      date: '2000-01-15',
+      date: '2026-11-19',
+      time: '21:00',
+      bodyArea: 'Brazo',
+      size: 'Mediano',
+      idea: 'Diseño de prueba suficientemente largo',
+    })).resolves.toBeDefined();
+  });
+
+  it('rejects a booking date in the past using the studio calendar', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-11-20T01:30:00.000Z'));
+    await expect(service.create(customer, {
+      artist: 'artist-one',
+      date: '2026-11-18',
       time: '10:00',
       bodyArea: 'Brazo',
       size: 'Mediano',
