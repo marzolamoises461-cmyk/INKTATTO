@@ -377,7 +377,7 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
     await request(app!.getHttpServer())
       .post('/api/auth/password/forgot')
       .send({ email: customerEmail })
-      .expect(200)
+      .expect(201)
       .expect(({ body }) => expect(body.message).toBe(message));
     const email = sentEmails.find((item) => item.recipientEmail === customerEmail)!;
     const token = email.textBody.match(/reset-password\?token=([a-f0-9]{64})/)?.[1];
