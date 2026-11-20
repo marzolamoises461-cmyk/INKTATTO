@@ -18,7 +18,7 @@ export class Booking {
   @OneToMany(() => BookingReferenceImage, (image) => image.booking)
   referenceImages!: BookingReferenceImage[];
 
-  @Column({ name: 'artist_id', nullable: true })
+  @Column({ name: 'artist_id', type: 'int', nullable: true })
   artistId!: number | null;
 
   @ManyToOne(() => Artist, { nullable: true, onDelete: 'SET NULL' })

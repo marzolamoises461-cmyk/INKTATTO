@@ -23,6 +23,6 @@ export class ArtistBlock {
   @Column({ name: 'ends_at', type: 'time', nullable: true })
   endsAt!: string | null;
 
-  @Column({ length: 255, nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true })
   reason!: string | null;
 }
