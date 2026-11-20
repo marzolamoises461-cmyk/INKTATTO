@@ -6,13 +6,28 @@ import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingStatusDto } from './dto/update-booking-status.dto';
 import { Booking } from './entities/booking.entity';
 
+const STUDIO_TIME_ZONE = 'America/Bogota';
+
+function getStudioDate(now = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: STUDIO_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now);
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 @Injectable()
 export class BookingsService {
   constructor(@InjectRepository(Booking) private readonly bookings: Repository<Booking>) {}
 
   async create(user: User, dto: CreateBookingDto): Promise<Booking> {
-    const today = new Date().toISOString().slice(0, 10);
-    if (dto.date < today) throw new BadRequestException('La fecha de la solicitud no puede estar en el pasado');
+    const todayInBogota = getStudioDate();
+    if (dto.date < todayInBogota) {
+      throw new BadRequestException('La fecha de la solicitud no puede estar en el pasado (hora de Colombia)');
+    }
 
     const booking = this.bookings.create({ ...dto, user, status: 'pending' });
     return this.bookings.save(booking);
