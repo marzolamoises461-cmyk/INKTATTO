@@ -23,63 +23,84 @@ Además de la guía académica, se conectaron las solicitudes de citas a MySQL:
 
 ## Reglas de seguridad
 
-- El registro público siempre crea usuarios activos con rol `user`; no acepta rol ni estado.
+- El registro público asigna el rol `user`; no permite que el cliente se otorgue privilegios de administrador.
 - Las contraseñas se guardan con bcrypt y no se exponen en respuestas.
 - El JWT no contiene contraseña ni otros secretos.
 - La estrategia consulta de nuevo el usuario en MySQL; una cuenta desactivada deja de poder usar el token.
-- El CRUD de usuarios y las operaciones administrativas de citas exigen JWT válido y rol `admin`.
+- El CRUD de usuarios y las operaciones administrativas exigen JWT válido y rol `admin`.
 - En todos los entornos `synchronize` está desactivado; el esquema se cambia con migraciones.
 - La aplicación valida al arrancar las variables obligatorias de MySQL y exige un `JWT_SECRET` aleatorio de al menos 32 caracteres.
 - CORS solo admite los orígenes HTTP/HTTPS declarados en `CORS_ORIGIN`; no se permite el comodín `*`.
-- El DataSource de migraciones falla explícitamente si faltan las credenciales de conexión; no intenta conectarse con una contraseña vacía o una base predeterminada.
+- El DataSource de migraciones falla explícitamente si faltan las credenciales de conexión.
 - El primer administrador se crea mediante el comando local `npm run admin:create`, nunca mediante un endpoint público.
 
 ## Estado de verificación
 
 Rama de trabajo: `feature/guia-instructor-completa` (PR #4).
 
-### Comprobaciones locales observadas
+### Comprobaciones locales reportadas
 
-En el entorno local del desarrollador se reportaron correctamente:
+El desarrollador reportó los siguientes resultados locales; no se han vuelto a ejecutar en este entorno:
 
 - `npm ci`.
 - `npm run lint`.
 - `npm run build`.
 - `npm test -- --runInBand`: 6 suites y 19 pruebas aprobadas.
-- `npm run test:e2e -- --runInBand`: 1 suite y 3 pruebas de contrato HTTP aprobadas. Estas pruebas usan un servicio simulado; no deben describirse como integración real con MySQL.
-- `npm run migration:show`: migraciones de usuarios y reservas aplicadas en la base local `inktatto_db`.
+- `npm run test:e2e -- --runInBand`: 1 suite y 3 pruebas de contrato HTTP aprobadas. Estas pruebas usan un servicio simulado; no son integración real con MySQL.
+- `npm run migration:show`: migraciones aplicadas en la base local `inktatto_db`.
 
-### Validación automatizada de integración
+### Validación automatizada
 
-Se añadió `backend/test/database.e2e-spec.ts`, que levanta el módulo NestJS real y verifica contra MySQL autenticación, JWT, serialización, roles, reservas y permisos de propietario. Está protegida por dos condiciones: `RUN_DB_E2E=true` y nombre de base terminado en `_test`. La CI usa el servicio MySQL temporal `inktatto_test`; la suite no se activa por defecto en el equipo local.
+El workflow `.github/workflows/backend-ci.yml` está configurado para ejecutar lint,
+compilación NestJS, pruebas unitarias, migraciones en un MySQL temporal, pruebas
+E2E con MySQL y compilación Nuxt.
 
-El workflow `.github/workflows/backend-ci.yml` está configurado para ejecutarse al hacer push a `main` o a ramas `feature/**`, y también al abrir/actualizar un pull request hacia `main`. Incluye lint, compilación NestJS, pruebas unitarias, migraciones en un servicio MySQL temporal, pruebas E2E con MySQL y compilación Nuxt. La configuración del workflow está en el repositorio; no se da por aprobada la ejecución del commit actual hasta que GitHub Actions muestre ambos trabajos en verde.
+**Estado del commit revisado:** el HEAD consultado del PR (#4) era
+`c91cb4a0f2867758374611f8939124d974db63c7`. En esa consulta GitHub no devolvió
+ejecuciones de Actions ni estados de verificación asociados a ese SHA. La
+descripción del PR menciona resultados aprobados para otro commit
+(`c1c4aa9`); esos resultados no certifican automáticamente el HEAD actual.
+Por tanto, la CI del HEAD debe considerarse pendiente hasta que GitHub Actions
+muestre los trabajos de backend y frontend en verde.
 
-El código de las páginas de acceso, perfil y reserva utiliza `useAuth()` y el `apiBase` configurable mediante `NUXT_PUBLIC_API_BASE`; el flujo de reservas crea y consulta datos mediante la API.
+La suite `backend/test/database.e2e-spec.ts` requiere `RUN_DB_E2E=true` y una
+base cuyo nombre termine en `_test`. No debe ejecutarse contra la base de
+desarrollo, compartida o de producción.
 
-### Pendiente de confirmación final
+### Integración con main — bloqueada
 
-- Probar manualmente en navegador registro, login, perfil y envío/cancelación de una reserva con la API en ejecución.
-- Confirmar que `NUXT_PUBLIC_API_BASE` apunte a la URL correcta cuando se despliegue el frontend.
+En la comparación consultada, `feature/guia-instructor-completa` y `main`
+estaban divergidas: 87 commits exclusivos de la rama de trabajo y 109 commits
+exclusivos de `main`. GitHub marcó el PR como no integrable en ese momento.
+Antes de fusionar se debe actualizar la rama de trabajo desde `main`, resolver
+los conflictos conservando ambos conjuntos de cambios y volver a ejecutar toda
+la CI. No se debe forzar la fusión ni sobrescribir `main`.
 
-La validación automatizada de backend, MySQL y compilación frontend ya está aprobada en GitHub Actions. Solo falta la comprobación manual del recorrido en navegador y confirmar la URL de API del despliegue frontend.
+### Pendiente de confirmación manual
+
+- Probar en navegador registro, verificación de correo, login, perfil y envío/cancelación de una reserva.
+- Confirmar que `NUXT_PUBLIC_API_BASE` apunte a la URL correcta al desplegar el frontend.
+- Probar la carga privada de imágenes con un bucket S3-compatible real.
+- Configurar SMTP real para verificar correo, recuperación y notificaciones.
+- Probar pagos únicamente en sandbox Wompi con credenciales de prueba.
 
 ## Fase 3 — estado por requisito
 
-| Requisito | Estado implementado |
+| Requisito | Implementación declarada en la rama; requiere validación |
 |---|---|
-| Límite de intentos de login/registro | Throttler global y límites más estrictos por ruta; el almacenamiento por instancia requiere Redis u otro store compartido en despliegues con réplicas. |
-| Helmet, contraseñas y baja lógica | Helmet activo, política CORS restringida, contraseñas con reglas de complejidad y usuarios desactivados sin borrar sus filas. |
-| Vulnerabilidades moderadas | `npm audit` aplicado a dependencias: overrides de `glob` corregidos bajo TypeORM y Nest CLI; debe repetirse en CI. |
-| Contacto | Formulario conectado, validación de servidor, persistencia MySQL y bandeja de mensajes protegida para admin. |
-| Favoritos | Persistencia MySQL por usuario, unicidad por diseño, alta idempotente y eliminación; visitantes mantienen el almacenamiento local previo. |
-| Administración | Listados de usuarios, citas y mensajes con paginación, búsqueda y ordenamiento; las citas permiten filtrar por estado. Las rutas administrativas exigen rol admin. |
-| Swagger | OpenAPI en `/api/docs`, DTOs anotados y operaciones documentadas. |
-| Pagos | Checkout Wompi preparado con referencia y firma de integridad; el estado exitoso exige webhook firmado más consulta privada al proveedor. No se declara producción lista sin credenciales/configuración. |
-| Pruebas | Unitarias y E2E HTTP se ejecutan sin MySQL compartido. El E2E MySQL queda aislado por `_test`; para verificarlo hace falta ejecutar CI o configurar una base de pruebas dedicada. |
+| Límite de intentos de login/registro | Throttler global y límites por ruta; el almacenamiento en memoria es por instancia y requiere un store compartido si hay varias réplicas. |
+| Helmet, contraseñas y baja lógica | Helmet, CORS restringido, reglas de complejidad y desactivación lógica de usuarios. |
+| Vulnerabilidades moderadas | Se añadieron overrides de dependencias; repetir `npm audit` en CI para confirmar el resultado actual. |
+| Contacto | Formulario, validación de servidor, persistencia MySQL y bandeja administrativa. |
+| Favoritos | Persistencia MySQL por usuario y operaciones de alta/eliminación; visitantes mantienen almacenamiento local. |
+| Administración | Listados con paginación, búsqueda y ordenamiento; rutas administrativas protegidas por rol. |
+| Swagger | OpenAPI en `/api/docs`. |
+| Pagos | Integración Wompi preparada; no está lista para producción sin credenciales, webhook HTTPS y pruebas del comercio. |
+| Pruebas | Hay pruebas unitarias, E2E HTTP y una suite E2E MySQL aislada; falta certificar el HEAD actual con CI. |
 
 ### Dependencias externas para completar producción
 
-- Correo: SMTP configurado para registro/verificación y recuperación.
-- Pagos: llaves Wompi de sandbox y producción, secretos de integridad/eventos, HTTPS público y URL de webhook configurada en el panel Wompi. Sin esto, el endpoint devuelve error de configuración y no abre checkout.
-- Pruebas de integración: MySQL aislado cuyo nombre termine en `_test`; no ejecutar contra la base compartida/de desarrollo.
+- Correo: SMTP configurado para registro/verificación, recuperación y notificaciones.
+- Imágenes: bucket S3-compatible privado y credenciales del estudio.
+- Pagos: llaves Wompi de sandbox y producción, secretos de integridad/eventos, HTTPS público y URL de webhook configurada.
+- Pruebas de integración: MySQL aislado cuyo nombre termine en `_test`; nunca usar la base compartida/de desarrollo.
