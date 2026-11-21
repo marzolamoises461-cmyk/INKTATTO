@@ -14,6 +14,8 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ContactModule } from './contact/contact.module';
 import { FavoritesModule } from './favorites/favorites.module';
 import { PaymentsModule } from './payments/payments.module';
+import { CatalogModule } from './catalog/catalog.module';
+import { StaffModule } from './staff/staff.module';
 
 @Module({
   controllers: [HealthController],
@@ -51,6 +53,8 @@ import { PaymentsModule } from './payments/payments.module';
     ContactModule,
     FavoritesModule,
     PaymentsModule,
+    CatalogModule,
+    StaffModule,
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 300 }]),
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
