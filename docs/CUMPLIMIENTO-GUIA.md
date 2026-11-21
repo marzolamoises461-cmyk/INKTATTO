@@ -104,3 +104,16 @@ la CI. No se debe forzar la fusión ni sobrescribir `main`.
 - Imágenes: bucket S3-compatible privado y credenciales del estudio.
 - Pagos: llaves Wompi de sandbox y producción, secretos de integridad/eventos, HTTPS público y URL de webhook configurada.
 - Pruebas de integración: MySQL aislado cuyo nombre termine en `_test`; nunca usar la base compartida/de desarrollo.
+
+
+## Ampliación recibida de Claude — catálogo y equipo
+
+Se añadieron al backend los módulos `catalog` y `staff`:
+
+- `GET /api/catalog` y `GET /api/staff`: consulta pública de registros activos.
+- `GET /api/catalog/admin` y `GET /api/staff/admin`: consulta administrativa.
+- `POST`, `PATCH/:id` y `DELETE/:id` en ambos módulos: operaciones protegidas con JWT y rol `admin`.
+- Entidades TypeORM y migraciones para `tattoo_designs` y `staff_members`; la eliminación desde estas rutas desactiva el registro en lugar de borrarlo.
+- Las imágenes se almacenan como texto largo en MySQL (`MEDIUMTEXT`), por lo que este cambio no configura un almacenamiento externo ni valida que una URL de imagen sea segura.
+
+Estos módulos se registraron en `AppModule`. El ZIP recibido no contiene páginas frontend para administrarlos y aún no hay una ejecución CI asociada al nuevo HEAD; por tanto, la integración de backend está subida a esta rama, pero requiere compilación, pruebas y conexión con la interfaz antes de considerarse terminada.
