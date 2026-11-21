@@ -44,4 +44,21 @@ describe('validateEnvironment', () => {
       DB_PORT: '70000',
     })).toThrow('DB_PORT debe estar entre 1 y 65535');
   });
+
+  it('requires a complete set of Wompi credentials and matching environment keys', () => {
+    expect(() => validateEnvironment({
+      ...validEnvironment(),
+      WOMPI_PUBLIC_KEY: 'pub_test_example',
+    })).toThrow('La integración Wompi requiere todas las llaves y secretos configurados');
+
+    expect(() => validateEnvironment({
+      ...validEnvironment(),
+      FRONTEND_URL: 'https://inktattoo.example',
+      WOMPI_ENVIRONMENT: 'production',
+      WOMPI_PUBLIC_KEY: 'pub_test_example',
+      WOMPI_PRIVATE_KEY: 'prv_test_example',
+      WOMPI_INTEGRITY_SECRET: 'integrity',
+      WOMPI_EVENTS_SECRET: 'events',
+    })).toThrow('Las llaves Wompi no corresponden a WOMPI_ENVIRONMENT');
+  });
 });

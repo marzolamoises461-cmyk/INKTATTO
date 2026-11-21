@@ -12,7 +12,7 @@ export class UpdateBookingStatusDto {
   @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) @Max(999999999999.99)
   quotedPrice?: number;
 
-  @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) @Max(999999999999.99)
+  @IsOptional() @Type(() => Number) @IsNumber({ maxDecimalPlaces: 0 }) @Min(0) @Max(999999999999)
   depositAmount?: number;
 
   @IsOptional() @IsString() @MaxLength(5000)

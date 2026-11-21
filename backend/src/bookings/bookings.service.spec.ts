@@ -9,6 +9,7 @@ import { BookingReferenceImage } from './entities/booking-reference-image.entity
 import { BookingStatusHistory } from './entities/booking-status-history.entity';
 import { ReferenceImageStorageService } from './reference-image-storage.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AdminListQueryDto } from '../common/dto/admin-list-query.dto';
 
 describe('BookingsService', () => {
   let service: BookingsService;
@@ -16,6 +17,7 @@ describe('BookingsService', () => {
     create: jest.Mock;
     save: jest.Mock;
     find: jest.Mock;
+    createQueryBuilder: jest.Mock;
   };
   let manager: { create: jest.Mock; save: jest.Mock; findOne: jest.Mock };
   let dataSource: { transaction: jest.Mock };
@@ -24,6 +26,14 @@ describe('BookingsService', () => {
   let images: { find: jest.Mock; findOne: jest.Mock };
   let statusHistory: { find: jest.Mock };
   let notifications: { queueBookingEvent: jest.Mock };
+  let bookingQuery: {
+    leftJoinAndSelect: jest.Mock;
+    andWhere: jest.Mock;
+    orderBy: jest.Mock;
+    skip: jest.Mock;
+    take: jest.Mock;
+    getManyAndCount: jest.Mock;
+  };
 
   const customer = { id: 5, email: 'cliente@ejemplo.com', fullName: 'Cliente' } as User;
   const admin = { id: 7, email: 'admin@ejemplo.com', fullName: 'Admin', role: 'admin' } as User;
@@ -50,7 +60,17 @@ describe('BookingsService', () => {
       create: jest.fn((value: Partial<Booking>) => value),
       save: jest.fn(async (value: Booking) => value),
       find: jest.fn().mockResolvedValue([]),
+      createQueryBuilder: jest.fn(),
     };
+    bookingQuery = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+    };
+    repository.createQueryBuilder.mockReturnValue(bookingQuery);
     manager = {
       create: jest.fn((_entity: unknown, value: Partial<Booking>) => value),
       save: jest.fn(async (_entity: unknown, value: Booking) => value),
@@ -189,5 +209,33 @@ describe('BookingsService', () => {
     const bookings = await service.findMine(customer.id);
     expect(bookings[0]).not.toHaveProperty('adminNotes');
     expect(bookings[0].status).toBe('pending');
+  });
+
+  it('filters, orders and paginates administrator booking listings', async () => {
+    const query = Object.assign(new AdminListQueryDto(), {
+      page: 2,
+      pageSize: 10,
+      search: 'ana',
+      status: 'quoted',
+      sortBy: 'date',
+      sortOrder: 'ASC' as const,
+    });
+
+    const result = await service.findAll(query);
+
+    expect(bookingQuery.leftJoinAndSelect).toHaveBeenCalledWith('booking.user', 'user');
+    expect(bookingQuery.andWhere).toHaveBeenCalledWith(expect.stringContaining('user.email LIKE :search'), {
+      search: '%ana%',
+    });
+    expect(bookingQuery.andWhere).toHaveBeenCalledWith('booking.status = :status', { status: 'quoted' });
+    expect(bookingQuery.orderBy).toHaveBeenCalledWith('booking.date', 'ASC');
+    expect(bookingQuery.skip).toHaveBeenCalledWith(10);
+    expect(bookingQuery.take).toHaveBeenCalledWith(10);
+    expect(result.meta).toEqual({ page: 2, pageSize: 10, total: 0, totalPages: 0 });
+  });
+
+  it('rejects unapproved booking sort columns', async () => {
+    await expect(service.findAll(Object.assign(new AdminListQueryDto(), { sortBy: 'user.password' })))
+      .rejects.toBeInstanceOf(BadRequestException);
   });
 });

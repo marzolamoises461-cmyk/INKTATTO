@@ -9,8 +9,15 @@ async function main(): Promise<void> {
   if (!email || !password || !fullName) {
     throw new Error('Define ADMIN_EMAIL, ADMIN_PASSWORD y ADMIN_FULL_NAME temporalmente en el entorno.');
   }
-  if (password.length < 12 || password.length > 72) {
-    throw new Error('La contraseña de administrador debe tener entre 12 y 72 caracteres.');
+  if (
+    password.length < 12 ||
+    password.length > 72 ||
+    !/[a-z]/.test(password) ||
+    !/[A-Z]/.test(password) ||
+    !/[0-9]/.test(password) ||
+    !/[^A-Za-z0-9]/.test(password)
+  ) {
+    throw new Error('La contraseña de administrador debe tener entre 12 y 72 caracteres e incluir mayúscula, minúscula, número y símbolo.');
   }
   await dataSource.initialize();
   try {

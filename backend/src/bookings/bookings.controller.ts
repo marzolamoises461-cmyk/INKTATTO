@@ -1,7 +1,8 @@
 import {
-  Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Res, StreamableFile,
+  Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Query, Res, StreamableFile,
   UploadedFiles, UseGuards, UseInterceptors,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import type { Response } from 'express';
@@ -15,8 +16,11 @@ import { CancelBookingDto } from './dto/cancel-booking.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { UpdateBookingStatusDto } from './dto/update-booking-status.dto';
 import { Booking } from './entities/booking.entity';
+import { AdminListQueryDto } from '../common/dto/admin-list-query.dto';
 
 @Controller('bookings')
+@ApiTags('citas')
+@ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 export class BookingsController {
   constructor(private readonly bookings: BookingsService) {}
@@ -87,8 +91,13 @@ export class BookingsController {
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin')
-  findAll(): Promise<Booking[]> {
-    return this.bookings.findAll();
+  @ApiOperation({ summary: 'Buscar citas con filtros, paginación y ordenamiento (administración)' })
+  @ApiOkResponse({ schema: { example: {
+    data: [{ id: 21, status: 'quoted', artist: 'faver', user: { id: 12, email: 'cliente@example.com', fullName: 'Ana García' } }],
+    meta: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
+  } } })
+  findAll(@Query() query: AdminListQueryDto) {
+    return this.bookings.findAll(query);
   }
 
   @Patch(':id/status')

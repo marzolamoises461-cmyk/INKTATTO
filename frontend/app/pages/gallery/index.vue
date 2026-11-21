@@ -66,26 +66,26 @@
 import { computed, onMounted, ref } from 'vue'
 import StudioLayout from '../../components/StudioLayout.vue'
 import { categories, designs } from '../../data/studio'
-import { readFavorites, toggleFavorite } from '../../utils/studio-storage'
+import { useFavorites } from '../../composables/useFavorites'
 
 const selectedCategory = ref('Todos')
-const favorites = ref<string[]>([])
+const { favorites, load, toggle: toggleFavorite } = useFavorites()
 const storageMessage = ref('')
 const filteredDesigns = computed(() => selectedCategory.value === 'Todos'
   ? designs
   : designs.filter((design) => design.category === selectedCategory.value))
 
-onMounted(() => {
+onMounted(async () => {
   try {
-    favorites.value = readFavorites()
+    await load()
   } catch (error) {
     storageMessage.value = error instanceof Error ? error.message : 'No se pudieron cargar los favoritos.'
   }
 })
 
-function toggle(slug: string) {
+async function toggle(slug: string) {
   try {
-    favorites.value = toggleFavorite(slug)
+    await toggleFavorite(slug)
     storageMessage.value = ''
   } catch (error) {
     storageMessage.value = error instanceof Error ? error.message : 'No se pudo actualizar el favorito.'

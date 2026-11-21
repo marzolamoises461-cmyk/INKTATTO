@@ -36,7 +36,7 @@ Además de la guía académica, se conectaron las solicitudes de citas a MySQL:
 
 ## Estado de verificación
 
-Rama de trabajo: `feature/guia-instructor-completa` (PR #1 permanece abierto como borrador).
+Rama de trabajo: `feature/guia-instructor-completa` (PR #4).
 
 ### Comprobaciones locales observadas
 
@@ -63,3 +63,23 @@ El código de las páginas de acceso, perfil y reserva utiliza `useAuth()` y el 
 - Confirmar que `NUXT_PUBLIC_API_BASE` apunte a la URL correcta cuando se despliegue el frontend.
 
 La validación automatizada de backend, MySQL y compilación frontend ya está aprobada en GitHub Actions. Solo falta la comprobación manual del recorrido en navegador y confirmar la URL de API del despliegue frontend.
+
+## Fase 3 — estado por requisito
+
+| Requisito | Estado implementado |
+|---|---|
+| Límite de intentos de login/registro | Throttler global y límites más estrictos por ruta; el almacenamiento por instancia requiere Redis u otro store compartido en despliegues con réplicas. |
+| Helmet, contraseñas y baja lógica | Helmet activo, política CORS restringida, contraseñas con reglas de complejidad y usuarios desactivados sin borrar sus filas. |
+| Vulnerabilidades moderadas | `npm audit` aplicado a dependencias: overrides de `glob` corregidos bajo TypeORM y Nest CLI; debe repetirse en CI. |
+| Contacto | Formulario conectado, validación de servidor, persistencia MySQL y bandeja de mensajes protegida para admin. |
+| Favoritos | Persistencia MySQL por usuario, unicidad por diseño, alta idempotente y eliminación; visitantes mantienen el almacenamiento local previo. |
+| Administración | Listados de usuarios, citas y mensajes con paginación, búsqueda y ordenamiento; las citas permiten filtrar por estado. Las rutas administrativas exigen rol admin. |
+| Swagger | OpenAPI en `/api/docs`, DTOs anotados y operaciones documentadas. |
+| Pagos | Checkout Wompi preparado con referencia y firma de integridad; el estado exitoso exige webhook firmado más consulta privada al proveedor. No se declara producción lista sin credenciales/configuración. |
+| Pruebas | Unitarias y E2E HTTP se ejecutan sin MySQL compartido. El E2E MySQL queda aislado por `_test`; para verificarlo hace falta ejecutar CI o configurar una base de pruebas dedicada. |
+
+### Dependencias externas para completar producción
+
+- Correo: SMTP configurado para registro/verificación y recuperación.
+- Pagos: llaves Wompi de sandbox y producción, secretos de integridad/eventos, HTTPS público y URL de webhook configurada en el panel Wompi. Sin esto, el endpoint devuelve error de configuración y no abre checkout.
+- Pruebas de integración: MySQL aislado cuyo nombre termine en `_test`; no ejecutar contra la base compartida/de desarrollo.

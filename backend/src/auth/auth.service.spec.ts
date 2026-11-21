@@ -1,10 +1,11 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
 import { UserService } from '../user/user.service';
 import { User } from '../user/entities/user.entity';
+import { EmailVerificationToken } from './entities/email-verification-token.entity';
 
 jest.mock('bcrypt', () => ({ compare: jest.fn(), hash: jest.fn().mockResolvedValue('new-hash') }));
 
@@ -16,7 +17,7 @@ describe('AuthService', () => {
     findById: jest.Mock;
   };
   let jwt: { signAsync: jest.Mock };
-  let config: { get: jest.Mock };
+  let config: { get: jest.Mock; getOrThrow: jest.Mock };
   let resetTokens: {
     delete: jest.Mock;
   };
@@ -48,6 +49,7 @@ describe('AuthService', () => {
     jwt = { signAsync: jest.fn().mockResolvedValue('signed.jwt.token') };
     config = {
       get: jest.fn((key: string) => key === 'FRONTEND_URL' ? 'https://inktattoo.example' : '3600'),
+      getOrThrow: jest.fn((key: string) => key === 'FRONTEND_URL' ? 'https://inktattoo.example' : '3600'),
     };
     resetTokens = {
       delete: jest.fn().mockResolvedValue(undefined),
@@ -76,19 +78,68 @@ describe('AuthService', () => {
     (bcrypt.compare as jest.Mock).mockResolvedValue(true);
   });
 
-  it('registers a user and returns the guide token response without password', async () => {
+  it('creates an inactive account and sends a one-time email verification link', async () => {
+    users.create.mockResolvedValue({ ...account, isActive: false });
+    manager.findOne.mockResolvedValue({ ...account, isActive: false });
     const result = await service.register({
       email: account.email,
-      password: 'secret123',
+      password: 'SecurePassword-2026!',
       fullName: account.fullName,
     });
-    expect(users.create).toHaveBeenCalled();
-    expect(jwt.signAsync).toHaveBeenCalledWith(
-      { sub: account.id, email: account.email, role: account.role },
-      { expiresIn: 3600 },
-    );
-    expect(result.token).toBe('signed.jwt.token');
-    expect(result.user).not.toHaveProperty('password');
+    expect(users.create).toHaveBeenCalledWith(expect.objectContaining({
+      email: account.email,
+      password: 'SecurePassword-2026!',
+    }), false);
+    expect(manager.save).toHaveBeenCalledWith(EmailVerificationToken, expect.objectContaining({
+      userId: account.id,
+      tokenHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+      expiresAt: expect.any(Date),
+    }));
+    expect(email.send).toHaveBeenCalledWith(expect.objectContaining({
+      recipientEmail: account.email,
+      textBody: expect.stringContaining('https://inktattoo.example/verify-email?token='),
+    }));
+    expect(result.message).toContain('verificar la cuenta');
+    expect(jwt.signAsync).not.toHaveBeenCalled();
+  });
+
+  it('activates a pending account only when its verification token is valid', async () => {
+    const repository = {
+      findOne: jest.fn().mockResolvedValue({
+        userId: account.id,
+        tokenHash: 'stored-hash',
+        usedAt: null,
+        expiresAt: new Date(Date.now() + 60_000),
+      }),
+    };
+    manager.getRepository.mockReturnValue(repository);
+    manager.findOne.mockResolvedValue({ ...account, isActive: false });
+
+    await service.verifyEmail('raw-token');
+
+    expect(repository.findOne).toHaveBeenCalledWith(expect.objectContaining({
+      where: { tokenHash: expect.stringMatching(/^[a-f0-9]{64}$/) },
+      lock: { mode: 'pessimistic_write' },
+    }));
+    expect(manager.update).toHaveBeenCalledWith(User, { id: account.id }, { isActive: true });
+  });
+
+  it('rejects invalid or expired verification tokens', async () => {
+    manager.getRepository.mockReturnValue({ findOne: jest.fn().mockResolvedValue(null) });
+
+    await expect(service.verifyEmail('unknown-token')).rejects.toBeInstanceOf(BadRequestException);
+    expect(manager.update).not.toHaveBeenCalled();
+  });
+
+  it('does not create accounts when SMTP is unavailable', async () => {
+    email.isConfigured.mockReturnValue(false);
+
+    await expect(service.register({
+      email: account.email,
+      password: 'SecurePassword-2026!',
+      fullName: account.fullName,
+    })).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(users.create).not.toHaveBeenCalled();
   });
 
   it('rejects invalid credentials', async () => {

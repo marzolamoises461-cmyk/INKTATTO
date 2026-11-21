@@ -349,8 +349,10 @@
         <form class="screen-form" @submit.prevent="submitLogin">
           <label v-if="isRegister" class="screen-field">Nombre completo<input v-model.trim="registerName" autocomplete="name" required maxlength="120" /></label>
           <label class="screen-field">Correo electrónico<input v-model.trim="loginEmail" type="email" required autocomplete="email" maxlength="190" /></label>
-          <label class="screen-field">Contraseña<input v-model="loginPassword" type="password" required :autocomplete="isRegister ? 'new-password' : 'current-password'" minlength="6" maxlength="72" /></label>
+          <label class="screen-field">Contraseña<input v-model="loginPassword" type="password" required :autocomplete="isRegister ? 'new-password' : 'current-password'" :minlength="isRegister ? 12 : 1" maxlength="72" /></label>
+          <p v-if="isRegister" class="screen-notice">Mínimo 12 caracteres, con mayúscula, minúscula, número y símbolo.</p>
           <p v-if="loginMessage" class="screen-notice" role="status">{{ loginMessage }}</p>
+          <button v-if="isRegister && verificationPending" class="text-link" type="button" :disabled="isSubmitting" @click="resendVerificationEmail">Reenviar correo de verificación</button>
           <button class="button button--solid" type="submit" :disabled="isSubmitting">{{ isSubmitting ? 'Procesando…' : (isRegister ? 'Crear cuenta' : 'Iniciar sesión') }} <span>↗</span></button>
           <button class="text-link" type="button" @click="isRegister = !isRegister; loginMessage = ''">{{ isRegister ? 'Ya tengo una cuenta · Iniciar sesión' : '¿No tienes cuenta? Crear una' }}</button>
           <a class="text-link" href="#perfil">Ir a mi perfil <span>↗</span></a>
@@ -471,6 +473,7 @@ const loginPassword = ref('')
 const registerName = ref('')
 const isRegister = ref(false)
 const isSubmitting = ref(false)
+const verificationPending = ref(false)
 const authToken = ref('')
 const currentUser = ref<ApiUser | null>(null)
 const isAuthenticated = computed(() => Boolean(authToken.value && currentUser.value))
@@ -724,10 +727,22 @@ async function submitLogin() {
   loginMessage.value = ''
   isSubmitting.value = true
   try {
-    const path = isRegister.value ? '/auth/register' : '/auth/login'
-    const body = isRegister.value
-      ? { fullName: registerName.value.trim(), email: loginEmail.value.trim(), password: loginPassword.value }
-      : { email: loginEmail.value.trim(), password: loginPassword.value }
+    if (isRegister.value) {
+      const response = await apiRequest<{ message: string }>('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({
+          fullName: registerName.value.trim(),
+          email: loginEmail.value.trim(),
+          password: loginPassword.value,
+        }),
+      })
+      verificationPending.value = true
+      loginPassword.value = ''
+      loginMessage.value = response.message
+      return
+    }
+    const path = '/auth/login'
+    const body = { email: loginEmail.value.trim(), password: loginPassword.value }
     const response = await apiRequest<{ token: string; user: ApiUser }>(path, { method: 'POST', body: JSON.stringify(body) })
     authToken.value = response.token
     currentUser.value = response.user
@@ -741,6 +756,20 @@ async function submitLogin() {
     navigateToPage('perfil')
   } catch (error) {
     loginMessage.value = error instanceof Error ? error.message : 'No se pudo iniciar sesión.'
+  } finally { isSubmitting.value = false }
+}
+
+async function resendVerificationEmail() {
+  loginMessage.value = ''
+  isSubmitting.value = true
+  try {
+    const response = await apiRequest<{ message: string }>('/auth/email/resend', {
+      method: 'POST',
+      body: JSON.stringify({ email: loginEmail.value.trim() }),
+    })
+    loginMessage.value = response.message
+  } catch (error) {
+    loginMessage.value = error instanceof Error ? error.message : 'No se pudo reenviar el correo.'
   } finally { isSubmitting.value = false }
 }
 

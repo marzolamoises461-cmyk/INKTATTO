@@ -14,6 +14,10 @@ interface AuthProfileResponse {
   user: AuthUser
 }
 
+interface MessageResponse {
+  message: string
+}
+
 export function useAuth() {
   const config = useRuntimeConfig()
   const user = useState<AuthUser | null>('inktatto-user', () => null)
@@ -42,12 +46,18 @@ export function useAuth() {
     saveSession(response)
   }
 
-  async function register(fullName: string, email: string, password: string): Promise<void> {
-    const response = await api<AuthResponse>('/auth/register', {
+  async function register(fullName: string, email: string, password: string): Promise<MessageResponse> {
+    return await api<MessageResponse>('/auth/register', {
       method: 'POST',
       body: { fullName, email, password },
     })
-    saveSession(response)
+  }
+
+  async function resendVerificationEmail(email: string): Promise<MessageResponse> {
+    return await api<MessageResponse>('/auth/email/resend', {
+      method: 'POST',
+      body: { email },
+    })
   }
 
   async function initialize(): Promise<void> {
@@ -69,5 +79,5 @@ export function useAuth() {
     if (import.meta.client) localStorage.removeItem('inktatto-access-token')
   }
 
-  return { user, token, api, login, register, initialize, logout }
+  return { user, token, api, login, register, resendVerificationEmail, initialize, logout }
 }

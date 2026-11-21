@@ -50,12 +50,31 @@ configura `NUXT_PUBLIC_API_BASE` con la URL pública de la API.
 
 Desde `backend/`, define temporalmente `ADMIN_EMAIL`, `ADMIN_FULL_NAME` y
 `ADMIN_PASSWORD` en PowerShell y ejecuta `npm run admin:create`. La contraseña
-debe tener entre 12 y 72 caracteres. El comando usa bcrypt y no existe una ruta
-pública para elevar privilegios.
+debe tener entre 12 y 72 caracteres e incluir mayúscula, minúscula, número y
+símbolo. El comando usa bcrypt y no existe una ruta pública para elevar privilegios.
+
+Las cuentas nuevas deben verificar su correo antes de iniciar sesión. Configura
+`FRONTEND_URL` y las variables SMTP descritas en `backend/.env.example`; la API
+no simula envíos cuando el proveedor de correo no está configurado.
+
+## Fase 3: contacto, favoritos y pagos
+
+- El formulario de contacto valida y guarda los mensajes en MySQL; los
+  administradores pueden revisarlos en `/admin`.
+- Los favoritos de visitantes se conservan localmente. Cuando el usuario inicia
+  sesión, sus favoritos se consultan y guardan por cuenta en MySQL.
+- Swagger está disponible en `http://localhost:3001/api/docs`.
+- Los anticipos usan checkout Web de Wompi Colombia. Sin las cuatro credenciales
+  `WOMPI_*` del archivo `backend/.env.example`, el checkout queda deshabilitado.
+  Los pagos se mantienen pendientes hasta validar el webhook firmado y volver
+  a consultar la transacción con la API privada de Wompi; la redirección del
+  navegador no confirma pagos.
 
 ## Validación
 
 Consulta `docs/CUMPLIMIENTO-GUIA.md` y `docs/PRUEBAS-API.md`. Las pruebas de
 integración MySQL solo deben ejecutarse contra una base cuyo nombre termine en
-`_test`. GitHub Actions valida lint, compilación, pruebas y migraciones del
-backend, además de compilar el frontend.
+`_test`. Para ejecutar el E2E con MySQL local hace falta una base aislada que
+termine en `_test`; no uses la base de desarrollo ni una base compartida.
+GitHub Actions valida lint, compilación, pruebas y migraciones del backend,
+además de compilar el frontend.

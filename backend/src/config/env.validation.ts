@@ -82,6 +82,33 @@ export function validateEnvironment(
     }
   }
 
+  const paymentKeys = [
+    'WOMPI_PUBLIC_KEY',
+    'WOMPI_PRIVATE_KEY',
+    'WOMPI_INTEGRITY_SECRET',
+    'WOMPI_EVENTS_SECRET',
+  ];
+  const paymentValues = paymentKeys.map((key) => config[key]);
+  const paymentsConfigured = paymentValues.some((value) => typeof value === 'string' && value.trim());
+  if (paymentsConfigured && paymentValues.some((value) => typeof value !== 'string' || !value.trim())) {
+    throw new Error('La integración Wompi requiere todas las llaves y secretos configurados.');
+  }
+  const wompiEnvironment = String(config.WOMPI_ENVIRONMENT ?? 'sandbox').trim();
+  if (!['sandbox', 'production'].includes(wompiEnvironment)) {
+    throw new Error('WOMPI_ENVIRONMENT debe ser sandbox o production.');
+  }
+  if (paymentsConfigured) {
+    const keyPrefix = wompiEnvironment === 'production' ? 'prod' : 'test';
+    const publicKey = String(config.WOMPI_PUBLIC_KEY).trim();
+    const privateKey = String(config.WOMPI_PRIVATE_KEY).trim();
+    if (!publicKey.startsWith(`pub_${keyPrefix}_`) || !privateKey.startsWith(`prv_${keyPrefix}_`)) {
+      throw new Error('Las llaves Wompi no corresponden a WOMPI_ENVIRONMENT.');
+    }
+    if (!frontendUrl || !String(frontendUrl).trim()) {
+      throw new Error('FRONTEND_URL es obligatoria para configurar pagos Wompi.');
+    }
+  }
+
   return {
     ...config,
     DB_HOST: dbHost,
@@ -94,5 +121,9 @@ export function validateEnvironment(
     JWT_EXPIRATION: String(jwtExpiration),
     CORS_ORIGIN: corsOrigins.join(','),
     ...(frontendUrl !== undefined ? { FRONTEND_URL: String(frontendUrl).trim() } : {}),
+    WOMPI_ENVIRONMENT: wompiEnvironment,
+    ...(paymentsConfigured
+      ? Object.fromEntries(paymentKeys.map((key) => [key, String(config[key]).trim()]))
+      : {}),
   };
 }

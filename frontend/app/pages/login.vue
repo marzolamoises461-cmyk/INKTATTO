@@ -21,9 +21,13 @@
           </label>
           <label class="studio-field">
             Contraseña
-            <input v-model="password" type="password" :autocomplete="registering ? 'new-password' : 'current-password'" required :minlength="registering ? 8 : 1" maxlength="72" />
+            <input v-model="password" type="password" :autocomplete="registering ? 'new-password' : 'current-password'" required :minlength="registering ? 12 : 1" maxlength="72" />
+            <small v-if="registering" class="login-form__hint">Mínimo 12 caracteres, con mayúscula, minúscula, número y símbolo.</small>
           </label>
           <p v-if="message" class="studio-notice" role="status">{{ message }}</p>
+          <button v-if="verificationPending" class="login-form__switch" type="button" :disabled="loading" @click="resendVerification">
+            Reenviar correo de verificación
+          </button>
           <button class="studio-button login-form__submit" type="submit" :disabled="loading">
             {{ loading ? 'Procesando…' : registering ? 'Crear cuenta' : 'Continuar' }} <span>↗</span>
           </button>
@@ -44,13 +48,14 @@
 import { onMounted, ref } from 'vue'
 import StudioLayout from '../components/StudioLayout.vue'
 
-const { user, login, register, initialize } = useAuth()
+const { user, login, register, resendVerificationEmail, initialize } = useAuth()
 const fullName = ref('')
 const email = ref('')
 const password = ref('')
 const message = ref('')
 const registering = ref(false)
 const loading = ref(false)
+const verificationPending = ref(false)
 
 onMounted(async () => {
   await initialize()
@@ -61,14 +66,35 @@ async function submit() {
   message.value = ''
   loading.value = true
   try {
-    if (registering.value) await register(fullName.value, email.value, password.value)
-    else await login(email.value, password.value)
+    if (registering.value) {
+      const response = await register(fullName.value, email.value, password.value)
+      verificationPending.value = true
+      message.value = response.message
+      password.value = ''
+      return
+    }
+    await login(email.value, password.value)
     password.value = ''
     await navigateTo('/profile')
   } catch (error: unknown) {
     const data = (error as { data?: { message?: string | string[] } }).data
     const detail = data?.message
     message.value = Array.isArray(detail) ? detail.join('. ') : detail ?? 'No se pudo completar el acceso. Revisa tus datos y que la API esté encendida.'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function resendVerification() {
+  message.value = ''
+  loading.value = true
+  try {
+    const response = await resendVerificationEmail(email.value)
+    message.value = response.message
+  } catch (error: unknown) {
+    const data = (error as { data?: { message?: string | string[] } }).data
+    const detail = data?.message
+    message.value = Array.isArray(detail) ? detail.join('. ') : detail ?? 'No se pudo reenviar el correo.'
   } finally {
     loading.value = false
   }
@@ -84,6 +110,7 @@ async function submit() {
 .login-form__heading { margin: 0; font: 500 27px 'Playfair Display', serif; }
 .login-form__submit { justify-content: space-between; }
 .login-form__submit:disabled { opacity: .6; cursor: wait; }
+.login-form__hint { color: var(--studio-muted); font: 10px/1.6 'DM Mono', monospace; }
 .login-form__switch, .login-footer { border: 0; background: none; color: var(--studio-muted); cursor: pointer; font: 10px/1.8 'DM Mono', monospace; letter-spacing: .04em; text-align: left; }
 .login-form__recovery { color: var(--studio-muted); font: 10px/1.8 'DM Mono', monospace; }
 .login-form__recovery:hover { color: var(--studio-paper); }

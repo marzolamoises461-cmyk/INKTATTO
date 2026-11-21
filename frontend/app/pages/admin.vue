@@ -107,6 +107,27 @@
               {{ bookingLoading ? 'Actualizando…' : 'Actualizar' }}
             </button>
           </div>
+          <form class="admin-filters" @submit.prevent="loadBookings(1)">
+            <label class="studio-field">Buscar<input v-model.trim="bookingSearch" maxlength="120" placeholder="Cliente, correo, artista…" /></label>
+            <label class="studio-field">Estado
+              <select v-model="bookingStatus">
+                <option value="">Todos</option>
+                <option v-for="status in bookingStatuses" :key="status" :value="status">{{ bookingStatusLabel(status) }}</option>
+              </select>
+            </label>
+            <label class="studio-field">Ordenar por
+              <select v-model="bookingSort">
+                <option value="createdAt">Fecha de solicitud</option>
+                <option value="date">Fecha de cita</option>
+                <option value="status">Estado</option>
+                <option value="artist">Artista</option>
+              </select>
+            </label>
+            <label class="studio-field">Dirección
+              <select v-model="bookingSortOrder"><option value="DESC">Descendente</option><option value="ASC">Ascendente</option></select>
+            </label>
+            <button class="studio-button studio-button--outline studio-button--small" type="submit">Aplicar filtros</button>
+          </form>
           <p v-if="!adminBookings.length" class="admin-help">No hay solicitudes de cita para gestionar.</p>
           <div v-else class="admin-booking-list">
             <article v-for="booking in adminBookings" :key="booking.id" class="admin-booking">
@@ -121,6 +142,56 @@
                 {{ selectedBookingId === booking.id ? 'Seleccionada' : 'Ver / gestionar' }}
               </button>
             </article>
+          </div>
+          <div v-if="bookingTotalPages > 1" class="admin-pagination">
+            <button class="admin-remove" type="button" :disabled="bookingPage <= 1" @click="loadBookings(bookingPage - 1)">Anterior</button>
+            <span>Página {{ bookingPage }} de {{ bookingTotalPages }} · {{ bookingTotal }} citas</span>
+            <button class="admin-remove" type="button" :disabled="bookingPage >= bookingTotalPages" @click="loadBookings(bookingPage + 1)">Siguiente</button>
+          </div>
+        </section>
+
+        <section class="admin-card studio-card">
+          <div class="admin-heading">
+            <div>
+              <p class="studio-eyebrow">Bandeja de entrada</p>
+              <h2>Mensajes de contacto</h2>
+            </div>
+            <button class="studio-button studio-button--outline studio-button--small" type="button" :disabled="contactLoading" @click="loadContactMessages()">
+              {{ contactLoading ? 'Actualizando…' : 'Actualizar' }}
+            </button>
+          </div>
+          <form class="admin-filters" @submit.prevent="loadContactMessages(1)">
+            <label class="studio-field">Buscar
+              <input v-model.trim="contactSearch" maxlength="120" placeholder="Nombre, correo o mensaje…" />
+            </label>
+            <label class="studio-field">Ordenar por
+              <select v-model="contactSort">
+                <option value="createdAt">Fecha</option>
+                <option value="fullName">Nombre</option>
+                <option value="email">Correo</option>
+              </select>
+            </label>
+            <label class="studio-field">Dirección
+              <select v-model="contactSortOrder"><option value="DESC">Descendente</option><option value="ASC">Ascendente</option></select>
+            </label>
+            <button class="studio-button studio-button--outline studio-button--small" type="submit">Aplicar filtros</button>
+          </form>
+          <p v-if="contactLoading" class="admin-help">Cargando mensajes…</p>
+          <p v-else-if="!contactMessages.length" class="admin-help">No hay mensajes de contacto para mostrar.</p>
+          <div v-else class="admin-message-list">
+            <article v-for="contact in contactMessages" :key="contact.id">
+              <div class="admin-heading">
+                <h3>{{ contact.fullName }}</h3>
+                <time :datetime="contact.createdAt">{{ formatTimestamp(contact.createdAt) }}</time>
+              </div>
+              <a :href="`mailto:${contact.email}`">{{ contact.email }}</a>
+              <p>{{ contact.message }}</p>
+            </article>
+          </div>
+          <div v-if="contactTotalPages > 1" class="admin-pagination">
+            <button class="admin-remove" type="button" :disabled="contactPage <= 1" @click="loadContactMessages(contactPage - 1)">Anterior</button>
+            <span>Página {{ contactPage }} de {{ contactTotalPages }} · {{ contactTotal }} mensajes</span>
+            <button class="admin-remove" type="button" :disabled="contactPage >= contactTotalPages" @click="loadContactMessages(contactPage + 1)">Siguiente</button>
           </div>
         </section>
 
@@ -161,11 +232,11 @@
             <template v-if="workflow.status === 'quoted'">
               <label class="studio-field">
                 Precio cotizado (COP)
-                <input v-model.number="workflow.quotedPrice" type="number" min="0" step="0.01" required />
+                <input v-model.number="workflow.quotedPrice" type="number" min="0" step="1" required />
               </label>
               <label class="studio-field">
                 Anticipo (COP)
-                <input v-model.number="workflow.depositAmount" type="number" min="0" step="0.01" />
+                <input v-model.number="workflow.depositAmount" type="number" min="0" step="1" />
               </label>
               <label class="studio-field">
                 Duración estimada (minutos)
@@ -214,6 +285,17 @@ interface AdminBooking {
   adminNotes: string | null
   user: { id: number; email: string; fullName: string }
 }
+interface ContactMessage {
+  id: number
+  fullName: string
+  email: string
+  message: string
+  createdAt: string
+}
+interface AdminPage<T> {
+  data: T[]
+  meta: { page: number; total: number; totalPages: number }
+}
 interface AdminReferenceImage {
   id: number
   originalName: string
@@ -241,6 +323,22 @@ const weekdays = [
 ]
 const artists = ref<Artist[]>([])
 const adminBookings = ref<AdminBooking[]>([])
+const bookingPage = ref(1)
+const bookingTotalPages = ref(0)
+const bookingTotal = ref(0)
+const bookingSearch = ref('')
+const bookingStatus = ref('')
+const bookingSort = ref('createdAt')
+const bookingSortOrder = ref<'ASC' | 'DESC'>('DESC')
+const bookingStatuses: BookingStatus[] = ['pending', 'quoted', 'confirmed', 'completed', 'cancelled', 'rejected']
+const contactMessages = ref<ContactMessage[]>([])
+const contactPage = ref(1)
+const contactTotalPages = ref(0)
+const contactTotal = ref(0)
+const contactSearch = ref('')
+const contactSort = ref('createdAt')
+const contactSortOrder = ref<'ASC' | 'DESC'>('DESC')
+const contactLoading = ref(false)
 const selectedArtistId = ref(0)
 const selectedBookingId = ref(0)
 const selectedBooking = computed(() => adminBookings.value.find((booking) => booking.id === selectedBookingId.value) ?? null)
@@ -281,7 +379,7 @@ onMounted(async () => {
   try {
     artists.value = await api<Artist[]>('/artists')
     selectedArtistId.value = artists.value[0]?.id ?? 0
-    await loadBookings()
+    await Promise.all([loadBookings(), loadContactMessages()])
   } catch {
     setMessage('No se pudieron cargar los artistas.', true)
   } finally {
@@ -373,14 +471,51 @@ async function removeBlock(blockId: number): Promise<void> {
   }
 }
 
-async function loadBookings(): Promise<void> {
+async function loadBookings(page = bookingPage.value): Promise<void> {
   bookingLoading.value = true
   try {
-    adminBookings.value = await api<AdminBooking[]>('/bookings')
+    const query = new URLSearchParams({
+      page: String(page),
+      pageSize: '10',
+      sortBy: bookingSort.value,
+      sortOrder: bookingSortOrder.value,
+      ...(bookingSearch.value ? { search: bookingSearch.value } : {}),
+      ...(bookingStatus.value ? { status: bookingStatus.value } : {}),
+    })
+    const result = await api<AdminPage<AdminBooking>>(`/bookings?${query.toString()}`)
+    adminBookings.value = result.data
+    bookingPage.value = result.meta.page
+    bookingTotalPages.value = result.meta.totalPages
+    bookingTotal.value = result.meta.total
+    if (selectedBookingId.value && !result.data.some((booking) => booking.id === selectedBookingId.value)) {
+      selectedBookingId.value = 0
+    }
   } catch (error: unknown) {
     setMessage(errorMessage(error, 'No se pudieron cargar las solicitudes de cita.'), true)
   } finally {
     bookingLoading.value = false
+  }
+}
+
+async function loadContactMessages(page = contactPage.value): Promise<void> {
+  contactLoading.value = true
+  try {
+    const query = new URLSearchParams({
+      page: String(page),
+      pageSize: '10',
+      sortBy: contactSort.value,
+      sortOrder: contactSortOrder.value,
+      ...(contactSearch.value ? { search: contactSearch.value } : {}),
+    })
+    const result = await api<AdminPage<ContactMessage>>(`/contact?${query.toString()}`)
+    contactMessages.value = result.data
+    contactPage.value = result.meta.page
+    contactTotalPages.value = result.meta.totalPages
+    contactTotal.value = result.meta.total
+  } catch (error: unknown) {
+    setMessage(errorMessage(error, 'No se pudieron cargar los mensajes de contacto.'), true)
+  } finally {
+    contactLoading.value = false
   }
 }
 
@@ -503,6 +638,14 @@ function setMessage(value: string, error = false): void {
 .admin-block-list strong { margin-right: 12px; color: var(--studio-paper); }
 .admin-block-list small { display: block; margin-top: 5px; }
 .admin-booking-list { display: grid; gap: 8px; margin-top: 20px; }
+.admin-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); align-items: end; gap: 12px; margin: 20px 0; }
+.admin-pagination { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 14px; margin-top: 20px; color: var(--studio-muted); font-size: 11px; }
+.admin-pagination button:disabled { cursor: not-allowed; opacity: .45; }
+.admin-message-list { display: grid; gap: 12px; }
+.admin-message-list article { padding: 16px; border: 1px solid var(--studio-line); }
+.admin-message-list h3 { margin: 0; font: 500 20px 'Playfair Display', serif; }
+.admin-message-list time, .admin-message-list a { color: var(--studio-muted); font-size: 11px; }
+.admin-message-list p { margin: 14px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--studio-paper); font-size: 13px; line-height: 1.7; }
 .admin-booking { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 14px; border: 1px solid var(--studio-line); }
 .admin-booking h3 { margin: 0 0 6px; font: 500 18px 'Playfair Display', serif; }
 .admin-booking span { display: block; margin-top: 3px; color: var(--studio-muted); font-size: 11px; }

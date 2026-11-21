@@ -4,7 +4,7 @@
       <header>
         <p class="studio-eyebrow">Estamos para escucharte</p>
         <h1 class="studio-title">Hablemos de<br /><em>tu idea.</em></h1>
-        <p class="studio-lede">Escríbenos para conversar sobre una pieza, el proceso o una consulta. El formulario abre tu aplicación de correo; no hay un servicio de envío conectado.</p>
+        <p class="studio-lede">Escríbenos para conversar sobre una pieza, el proceso o una consulta. Tu mensaje se guardará para que el estudio pueda responderte.</p>
       </header>
 
       <div class="contact-layout">
@@ -22,8 +22,10 @@
             Mensaje *
             <textarea v-model.trim="form.message" required minlength="10" maxlength="1500" placeholder="¿Qué te gustaría saber o crear?" />
           </label>
-          <p v-if="message" class="studio-notice" role="status">{{ message }}</p>
-          <button class="studio-button contact-submit" type="submit">Abrir correo para enviar <span>↗</span></button>
+          <p v-if="message" class="studio-notice" :role="isError ? 'alert' : 'status'">{{ message }}</p>
+          <button class="studio-button contact-submit" type="submit" :disabled="sending">
+            {{ sending ? 'Enviando…' : 'Enviar mensaje' }} <span>↗</span>
+          </button>
         </form>
 
         <aside class="contact-information">
@@ -62,14 +64,30 @@
 import { reactive, ref } from 'vue'
 import StudioLayout from '../components/StudioLayout.vue'
 
+const { api } = useAuth()
 const form = reactive({ name: '', email: '', message: '' })
 const message = ref('')
+const isError = ref(false)
+const sending = ref(false)
 
-function sendMessage() {
-  const subject = encodeURIComponent(`Consulta desde la web de Kage Tattoo · ${form.name}`)
-  const body = encodeURIComponent(`Nombre: ${form.name}\nCorreo: ${form.email}\n\n${form.message}`)
-  message.value = 'Se abrirá tu aplicación de correo con el mensaje preparado. El sitio no lo envía automáticamente.'
-  window.location.href = `mailto:hola@kagetattoo.es?subject=${subject}&body=${body}`
+async function sendMessage() {
+  if (sending.value) return
+  sending.value = true
+  message.value = ''
+  isError.value = false
+  try {
+    const result = await api<{ message: string }>('/contact', { method: 'POST', body: form })
+    message.value = result.message
+    form.name = ''
+    form.email = ''
+    form.message = ''
+  } catch (error: unknown) {
+    const detail = (error as { data?: { message?: string | string[] } }).data?.message
+    message.value = Array.isArray(detail) ? detail.join('. ') : detail ?? 'No se pudo enviar el mensaje. Inténtalo más tarde.'
+    isError.value = true
+  } finally {
+    sending.value = false
+  }
 }
 </script>
 

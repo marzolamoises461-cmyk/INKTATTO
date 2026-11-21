@@ -7,11 +7,12 @@
         <form class="recovery-form" @submit.prevent="submit">
           <label class="studio-field">
             Contraseña nueva
-            <input v-model="password" type="password" autocomplete="new-password" required minlength="8" maxlength="72" />
+            <input v-model="password" type="password" autocomplete="new-password" required minlength="12" maxlength="72" />
+            <small>Mínimo 12 caracteres, con mayúscula, minúscula, número y símbolo.</small>
           </label>
           <label class="studio-field">
             Confirmar contraseña
-            <input v-model="confirmation" type="password" autocomplete="new-password" required minlength="8" maxlength="72" />
+            <input v-model="confirmation" type="password" autocomplete="new-password" required minlength="12" maxlength="72" />
           </label>
           <p v-if="message" class="studio-notice" role="status">{{ message }}</p>
           <button class="studio-button" type="submit" :disabled="loading || !resetToken">

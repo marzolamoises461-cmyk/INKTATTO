@@ -17,6 +17,8 @@ import { LoginDto } from './dto/login.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
+import { EmailVerificationToken } from './entities/email-verification-token.entity';
+import { ResendVerificationEmailDto } from './dto/verify-email.dto';
 import { AuthResponse } from './interfaces/auth-response.interface';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 
@@ -32,9 +34,45 @@ export class AuthService {
     private readonly email: EmailService,
   ) {}
 
-  async register(dto: RegisterDto): Promise<AuthResponse> {
-    const user = await this.users.create(dto);
-    return this.buildAuthResponse(user);
+  async register(dto: RegisterDto): Promise<{ message: string }> {
+    this.assertEmailDeliveryConfigured();
+    const user = await this.users.create(dto, false);
+    await this.sendVerificationEmail(user);
+    return { message: 'Revisa tu correo para verificar la cuenta antes de iniciar sesión.' };
+  }
+
+  async resendVerificationEmail(dto: ResendVerificationEmailDto): Promise<{ message: string }> {
+    this.assertEmailDeliveryConfigured();
+    const user = await this.users.findOneByEmail(dto.email);
+    if (user && !user.isActive) await this.sendVerificationEmail(user);
+    return { message: 'Si el correo corresponde a una cuenta pendiente, recibirás un nuevo enlace de verificación.' };
+  }
+
+  async verifyEmail(tokenValue: string): Promise<{ message: string }> {
+    const tokenHash = createHash('sha256').update(tokenValue).digest('hex');
+    await this.dataSource.transaction(async (manager) => {
+      const token = await manager.getRepository(EmailVerificationToken).findOne({
+        where: { tokenHash },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!token || token.usedAt || token.expiresAt <= new Date()) {
+        throw new BadRequestException('El enlace de verificación no es válido o expiró.');
+      }
+
+      const user = await manager.findOne(User, {
+        where: { id: token.userId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!user || user.isActive) {
+        throw new BadRequestException('El enlace de verificación no es válido o expiró.');
+      }
+
+      const now = new Date();
+      token.usedAt = now;
+      await manager.save(EmailVerificationToken, token);
+      await manager.update(User, { id: user.id }, { isActive: true });
+    });
+    return { message: 'Correo verificado. Ya puedes iniciar sesión.' };
   }
 
   async updateProfile(userId: number, dto: UpdateProfileDto): Promise<User> {
@@ -145,6 +183,60 @@ export class AuthService {
       await manager.update(PasswordResetToken, { userId, usedAt: IsNull() }, { usedAt: now });
     });
     return { message: 'La contraseña se actualizó correctamente.' };
+  }
+
+  private assertEmailDeliveryConfigured(): void {
+    if (!this.config.get<string>('FRONTEND_URL')?.trim() || !this.email.isConfigured()) {
+      throw new ServiceUnavailableException(
+        'La verificación de cuenta requiere FRONTEND_URL y una configuración SMTP válida.',
+      );
+    }
+  }
+
+  private async sendVerificationEmail(user: User): Promise<void> {
+    const rawToken = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(rawToken).digest('hex');
+    await this.dataSource.transaction(async (manager) => {
+      const now = new Date();
+      const currentUser = await manager.findOne(User, {
+        where: { id: user.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!currentUser || currentUser.isActive) {
+        throw new BadRequestException('La cuenta ya no requiere verificación.');
+      }
+      await manager.update(
+        EmailVerificationToken,
+        { userId: user.id, usedAt: IsNull() },
+        { usedAt: now },
+      );
+      await manager.save(EmailVerificationToken, {
+        userId: user.id,
+        tokenHash,
+        expiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+        usedAt: null,
+      });
+    });
+
+    const verifyUrl = new URL('/verify-email', this.config.getOrThrow<string>('FRONTEND_URL'));
+    verifyUrl.searchParams.set('token', rawToken);
+    try {
+      await this.email.send({
+        recipientEmail: user.email,
+        subject: 'Verifica tu correo de INKTATTO',
+        textBody: [
+          `Hola ${user.fullName},`,
+          '',
+          'Confirma que esta dirección de correo te pertenece para activar tu cuenta.',
+          `El enlace vence en 24 horas: ${verifyUrl.toString()}`,
+        ].join('\n'),
+      });
+    } catch (error) {
+      await this.dataSource.transaction(async (manager) => {
+        await manager.update(EmailVerificationToken, { tokenHash }, { usedAt: new Date() });
+      });
+      throw error;
+    }
   }
 
   private async buildAuthResponse(user: User): Promise<AuthResponse> {

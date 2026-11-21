@@ -56,8 +56,18 @@ npm run migration:show
 | POST | `/api/bookings` | JWT; crea solicitud del usuario autenticado |
 | GET | `/api/bookings/mine` | JWT; solo solicitudes propias |
 | PATCH | `/api/bookings/:id/cancel` | JWT; propietario y solo pendiente |
-| GET | `/api/bookings` | JWT + admin |
+| GET | `/api/bookings?page=1&pageSize=20&search=ana&status=pending&sortBy=createdAt&sortOrder=DESC` | JWT + admin; paginado |
 | PATCH | `/api/bookings/:id/status` | JWT + admin |
+| POST | `/api/contact` | Público con límite de solicitudes; valida y persiste el mensaje |
+| GET | `/api/contact?page=1&pageSize=20&search=ana` | JWT + admin; mensajes paginados |
+| GET | `/api/favorites` | JWT; lista los favoritos del usuario autenticado |
+| PUT | `/api/favorites` | JWT; agrega idempotentemente `{ "designSlug": "dragon" }` |
+| DELETE | `/api/favorites/:designSlug` | JWT; quita el favorito propio |
+| POST | `/api/payments/bookings/:bookingId/checkout` | JWT propietario; crea checkout Wompi con pago pendiente |
+| GET | `/api/payments/bookings/:bookingId` | JWT propietario o admin; estado confirmado localmente |
+| POST | `/api/payments/wompi/webhook` | Webhook firmado; API vuelve a consultar la transacción a Wompi |
+
+Swagger/OpenAPI: `http://localhost:3001/api/docs`.
 
 ## Ejemplos cURL
 
@@ -104,6 +114,12 @@ propietario, gestión administrativa y serialización de contraseñas.
 - GitHub Actions crea una instancia MySQL temporal con la base `inktatto_test`,
   aplica las migraciones y ejecuta la suite real. No uses `inktatto_db` ni otra
   base de datos de trabajo para esta prueba.
+
+  La suite de integración incluye contacto, favoritos por usuario y la creación
+  de un checkout de prueba que permanece `pending`. No realiza cargos reales ni
+  simula confirmaciones exitosas. Las pruebas unitarias del servicio verifican la
+  firma del webhook y que se consulte a Wompi antes de registrar un estado final.
+  El uso real de pagos necesita las credenciales Wompi y el webhook de sandbox.
 
 Para ejecutar la suite manualmente, configura primero una base de datos aislada
 cuyo nombre termine en `_test`, con credenciales de prueba, y solo entonces

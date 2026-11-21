@@ -3,6 +3,7 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { UserService } from './user.service';
 import { User } from './entities/user.entity';
+import { AdminListQueryDto } from '../common/dto/admin-list-query.dto';
 
 jest.mock('bcrypt', () => ({ hash: jest.fn().mockResolvedValue('hashed-password') }));
 
@@ -15,7 +16,7 @@ describe('UserService', () => {
     find: jest.Mock;
     findOneBy: jest.Mock;
     findOne: jest.Mock;
-    remove: jest.Mock;
+    findAndCount: jest.Mock;
     merge: jest.Mock;
   };
 
@@ -27,7 +28,7 @@ describe('UserService', () => {
       find: jest.fn().mockResolvedValue([]),
       findOneBy: jest.fn().mockResolvedValue(null),
       findOne: jest.fn().mockResolvedValue(null),
-      remove: jest.fn().mockResolvedValue(undefined),
+      findAndCount: jest.fn().mockResolvedValue([[{ id: 1 }], 1]),
       merge: jest.fn((entity: User, changes: Partial<User>) => Object.assign(entity, changes)),
     };
     service = new UserService(repository as unknown as Repository<User>);
@@ -48,5 +49,41 @@ describe('UserService', () => {
 
   it('returns 404 when a user does not exist', async () => {
     await expect(service.findOne(999)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('paginates and searches administrator user listings', async () => {
+    const query = Object.assign(new AdminListQueryDto(), {
+      page: 2,
+      pageSize: 10,
+      search: 'ana',
+      sortBy: 'email',
+      sortOrder: 'ASC' as const,
+    });
+
+    const result = await service.findAll(query);
+
+    expect(repository.findAndCount).toHaveBeenCalledWith(expect.objectContaining({
+      skip: 10,
+      take: 10,
+      order: { email: 'ASC' },
+      where: expect.any(Array),
+    }));
+    expect(result.meta).toEqual({ page: 2, pageSize: 10, total: 1, totalPages: 1 });
+  });
+
+  it('rejects unapproved user sort columns', async () => {
+    await expect(service.findAll(Object.assign(new AdminListQueryDto(), { sortBy: 'password' })))
+      .rejects.toThrow('El campo de ordenamiento no está permitido.');
+  });
+
+  it('deactivates an account without physically removing its record', async () => {
+    const activeUser = { id: 8, isActive: true } as User;
+    repository.findOneBy.mockResolvedValue(activeUser);
+
+    await service.remove(8);
+
+    expect(activeUser.isActive).toBe(false);
+    expect(repository.save).toHaveBeenCalledWith(activeUser);
+    expect(repository).not.toHaveProperty('remove');
   });
 });

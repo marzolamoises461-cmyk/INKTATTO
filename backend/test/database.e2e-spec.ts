@@ -9,12 +9,16 @@ import { User } from '../src/user/entities/user.entity';
 import { Artist } from '../src/artists/entities/artist.entity';
 import { ReferenceImageStorageService } from '../src/bookings/reference-image-storage.service';
 import { EmailService } from '../src/notifications/email.service';
+import { ContactMessage } from '../src/contact/entities/contact-message.entity';
+import { Booking } from '../src/bookings/entities/booking.entity';
 
 const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
 
 (runDatabaseE2e ? describe : describe.skip)('API real con MySQL (integration e2e)', () => {
   let app: INestApplication | null = null;
   let users: Repository<User> | null = null;
+  let bookings: Repository<Booking> | null = null;
+  let contactMessages: Repository<ContactMessage> | null = null;
   let customerToken = '';
   let secondCustomerToken = '';
   let adminToken = '';
@@ -25,12 +29,36 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
   let workflowBookingId = 0;
   const sentEmails: Array<{ recipientEmail: string; subject: string; textBody: string }> = [];
   const originalFrontendUrl = process.env.FRONTEND_URL;
+  const originalPaymentEnv = {
+    WOMPI_ENVIRONMENT: process.env.WOMPI_ENVIRONMENT,
+    WOMPI_PUBLIC_KEY: process.env.WOMPI_PUBLIC_KEY,
+    WOMPI_PRIVATE_KEY: process.env.WOMPI_PRIVATE_KEY,
+    WOMPI_INTEGRITY_SECRET: process.env.WOMPI_INTEGRITY_SECRET,
+    WOMPI_EVENTS_SECRET: process.env.WOMPI_EVENTS_SECRET,
+  };
 
   const suffix = `${Date.now()}-${process.pid}`;
   const customerEmail = `cliente-${suffix}@inktatto.test`;
   const secondEmail = `cliente-dos-${suffix}@inktatto.test`;
   const adminEmail = `admin-${suffix}@inktatto.test`;
   const password = 'TestPassword-2026!';
+
+  async function verifyRegisteredAccount(email: string): Promise<string> {
+    const verificationEmail = [...sentEmails].reverse().find((item) =>
+      item.recipientEmail === email && item.subject.includes('Verifica tu correo'),
+    );
+    const token = verificationEmail?.textBody.match(/verify-email\?token=([a-f0-9]{64})/)?.[1];
+    expect(token).toBeTruthy();
+    await request(app!.getHttpServer())
+      .post('/api/auth/email/verify')
+      .send({ token })
+      .expect(201);
+    const login = await request(app!.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email, password })
+      .expect(200);
+    return login.body.token as string;
+  }
 
   beforeAll(async () => {
     const database = process.env.DB_DATABASE ?? '';
@@ -41,6 +69,11 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
     }
 
     process.env.FRONTEND_URL = 'http://localhost:3000';
+    process.env.WOMPI_ENVIRONMENT = 'sandbox';
+    process.env.WOMPI_PUBLIC_KEY = 'pub_test_database_e2e';
+    process.env.WOMPI_PRIVATE_KEY = 'prv_test_database_e2e';
+    process.env.WOMPI_INTEGRITY_SECRET = 'database-e2e-integrity-secret';
+    process.env.WOMPI_EVENTS_SECRET = 'database-e2e-events-secret';
     const { AppModule } = await import('../src/app.module');
     let imageId = 0;
     const imageContent = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
@@ -80,6 +113,8 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
     await app.init();
 
     users = app.get<Repository<User>>(getRepositoryToken(User));
+    bookings = app.get<Repository<Booking>>(getRepositoryToken(Booking));
+    contactMessages = app.get<Repository<ContactMessage>>(getRepositoryToken(ContactMessage));
     const admin = users!.create({
       email: adminEmail,
       password: await bcrypt.hash(password, 10),
@@ -113,14 +148,23 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
     if (users) {
       await users.delete({ email: In([customerEmail, secondEmail, adminEmail]) });
     }
+    if (contactMessages) {
+      await contactMessages.delete({ email: customerEmail });
+    }
     if (app) await app.close();
     if (originalFrontendUrl === undefined) delete process.env.FRONTEND_URL;
     else process.env.FRONTEND_URL = originalFrontendUrl;
+    for (const [key, value] of Object.entries(originalPaymentEnv)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
   });
 
   it('rechaza rutas protegidas sin token', async () => {
     await request(app!.getHttpServer()).get('/api/bookings/mine').expect(401);
     await request(app!.getHttpServer()).get('/api/users').expect(401);
+    await request(app!.getHttpServer()).get('/api/contact').expect(401);
+    await request(app!.getHttpServer()).get('/api/favorites').expect(401);
   });
 
   it('registra clientes sin permitir autoasignarse el rol admin', async () => {
@@ -134,9 +178,8 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
       .send({ email: customerEmail, password, fullName: 'Cliente de pruebas' })
       .expect(201);
 
-    customerToken = registration.body.token;
-    expect(registration.body.user.role).toBe('user');
-    expect(registration.body.user).not.toHaveProperty('password');
+    expect(registration.body.message).toMatch(/verificar la cuenta/);
+    expect(registration.body).not.toHaveProperty('token');
 
     await request(app!.getHttpServer())
       .post('/api/auth/register')
@@ -148,11 +191,11 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
       })
       .expect(400);
 
-    const login = await request(app!.getHttpServer())
+    await request(app!.getHttpServer())
       .post('/api/auth/login')
       .send({ email: customerEmail, password })
-      .expect(200);
-    expect(login.body.token).toBeTruthy();
+      .expect(401);
+    customerToken = await verifyRegisteredAccount(customerEmail);
 
     const profile = await request(app!.getHttpServer())
       .get('/api/auth/profile')
@@ -162,12 +205,64 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
     expect(profile.body.user).not.toHaveProperty('password');
   });
 
+  it('guarda mensajes de contacto y limita su consulta a administradores', async () => {
+    await request(app!.getHttpServer())
+      .post('/api/contact')
+      .send({ name: 'Cliente E2E', email: customerEmail, message: 'Quiero consultar una pieza personalizada.' })
+      .expect(201);
+    await request(app!.getHttpServer())
+      .get('/api/contact')
+      .set('Authorization', `Bearer ${customerToken}`)
+      .expect(403);
+
+    const result = await request(app!.getHttpServer())
+      .get('/api/contact?page=1&pageSize=10&search=Cliente%20E2E')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(result.body.data).toEqual(expect.arrayContaining([
+      expect.objectContaining({ email: customerEmail, message: 'Quiero consultar una pieza personalizada.' }),
+    ]));
+    expect(result.body.meta.total).toBeGreaterThan(0);
+  });
+
+  it('persists favorites per account, prevents duplicates and allows removal', async () => {
+    const token = customerToken || await verifyRegisteredAccount(customerEmail);
+    const path = '/api/favorites';
+    await request(app!.getHttpServer())
+      .put(path)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ designSlug: 'dragon' })
+      .expect(200);
+    await request(app!.getHttpServer())
+      .put(path)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ designSlug: 'dragon' })
+      .expect(200);
+
+    const listed = await request(app!.getHttpServer())
+      .get(path)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(listed.body).toEqual(['dragon']);
+
+    await request(app!.getHttpServer())
+      .delete(`${path}/dragon`)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(204);
+    const afterRemoval = await request(app!.getHttpServer())
+      .get(path)
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(afterRemoval.body).toEqual([]);
+  });
+
   it('bloquea reservas simultáneas del mismo artista y limita el acceso a imágenes', async () => {
     const second = await request(app!.getHttpServer())
       .post('/api/auth/register')
       .send({ email: secondEmail, password, fullName: 'Segundo cliente' })
       .expect(201);
-    secondCustomerToken = second.body.token;
+    expect(second.body).not.toHaveProperty('token');
+    secondCustomerToken = await verifyRegisteredAccount(secondEmail);
 
     await request(app!.getHttpServer())
       .put(`/api/artists/${artistId}/schedule`)
@@ -294,8 +389,8 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
       .get('/api/users')
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
-    expect(userList.body.some((user: { email: string }) => user.email === customerEmail)).toBe(true);
-    expect(userList.body.every((user: { password?: string }) => !('password' in user))).toBe(true);
+    expect(userList.body.data.some((user: { email: string }) => user.email === customerEmail)).toBe(true);
+    expect(userList.body.data.every((user: { password?: string }) => !('password' in user))).toBe(true);
 
     const workflowBooking = await request(app!.getHttpServer())
       .post('/api/bookings')
@@ -318,7 +413,7 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200)
       .expect(({ body }) => {
-        const booking = body.find((item: { id: number }) => item.id === bookingId);
+        const booking = body.data.find((item: { id: number }) => item.id === bookingId);
         expect(booking).toBeTruthy();
         expect(booking.user).not.toHaveProperty('password');
       });
@@ -340,6 +435,22 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
         expect(body.depositAmount).toBe('50000.00');
         expect(body.adminNotes).toBe('Diseño revisado');
       });
+
+    const checkout = await request(app!.getHttpServer())
+      .post(`/api/payments/bookings/${workflowBookingId}/checkout`)
+      .set('Authorization', `Bearer ${customerToken}`)
+      .expect(201);
+    expect(checkout.body.status).toBe('pending');
+    expect(checkout.body.checkoutUrl).toContain('https://checkout.wompi.co/p/');
+    const paymentStatus = await request(app!.getHttpServer())
+      .get(`/api/payments/bookings/${workflowBookingId}`)
+      .set('Authorization', `Bearer ${customerToken}`)
+      .expect(200);
+    expect(paymentStatus.body).toEqual({ status: 'pending' });
+    await request(app!.getHttpServer())
+      .get(`/api/payments/bookings/${workflowBookingId}`)
+      .set('Authorization', `Bearer ${secondCustomerToken}`)
+      .expect(403);
 
     await request(app!.getHttpServer())
       .patch(`/api/bookings/${workflowBookingId}/status`)
@@ -403,11 +514,25 @@ const runDatabaseE2e = process.env.RUN_DB_E2E === 'true';
   });
 
   it('invalida el token cuando la cuenta se desactiva', async () => {
-    await users!.update({ email: customerEmail }, { isActive: false });
+    const customer = await users!.findOneByOrFail({ email: customerEmail });
+    await request(app!.getHttpServer())
+      .delete(`/api/users/${customer.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(204);
+
+    const retainedCustomer = await users!.findOneByOrFail({ email: customerEmail });
+    expect(retainedCustomer.isActive).toBe(false);
+    expect(await users!.countBy({ email: customerEmail })).toBe(1);
 
     await request(app!.getHttpServer())
       .get('/api/auth/profile')
       .set('Authorization', `Bearer ${customerToken}`)
       .expect(401);
+
+    const retainedBooking = await bookings!.findOne({
+      where: { id: workflowBookingId },
+      relations: { user: true },
+    });
+    expect(retainedBooking?.user.id).toBe(customer.id);
   });
 });

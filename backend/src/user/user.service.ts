@@ -1,7 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { Repository } from 'typeorm';
+import { Like, Repository } from 'typeorm';
+import { AdminListQueryDto, paginated, PaginatedResult } from '../common/dto/admin-list-query.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
@@ -11,13 +12,31 @@ export class UserService {
   private readonly saltRounds = 10;
   constructor(@InjectRepository(User) private readonly users: Repository<User>) {}
 
-  async create(dto: CreateUserDto): Promise<User> {
+  async create(dto: CreateUserDto, isActive = true): Promise<User> {
     const email = dto.email.trim().toLowerCase();
     if (await this.users.existsBy({ email })) throw new ConflictException('El email ya está registrado');
-    const user = this.users.create({ ...dto, email, password: await bcrypt.hash(dto.password, this.saltRounds), role: 'user', isActive: true });
+    const user = this.users.create({ ...dto, email, password: await bcrypt.hash(dto.password, this.saltRounds), role: 'user', isActive });
     return this.users.save(user);
   }
-  async findAll(): Promise<User[]> { return this.users.find({ order: { createdAt: 'DESC' } }); }
+  async findAll(query: AdminListQueryDto): Promise<PaginatedResult<User>> {
+    const sortBy = query.sortBy ?? 'createdAt';
+    const allowedSorts = ['createdAt', 'email', 'fullName', 'role', 'isActive'];
+    if (!allowedSorts.includes(sortBy)) throw new BadRequestException('El campo de ordenamiento no está permitido.');
+    const search = query.search?.trim();
+    const where = search
+      ? [
+          { email: Like(`%${search}%`) },
+          { fullName: Like(`%${search}%`) },
+        ]
+      : undefined;
+    const [data, total] = await this.users.findAndCount({
+      where,
+      order: { [sortBy]: query.sortOrder },
+      skip: (query.page - 1) * query.pageSize,
+      take: query.pageSize,
+    });
+    return paginated(data, total, query);
+  }
   async findOne(id: number): Promise<User> {
     const user = await this.users.findOneBy({ id });
     if (!user) throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
@@ -39,5 +58,11 @@ export class UserService {
     this.users.merge(user, changes);
     return this.users.save(user);
   }
-  async remove(id: number): Promise<void> { const user = await this.findOne(id); await this.users.remove(user); }
+  async remove(id: number): Promise<void> {
+    const user = await this.findOne(id);
+    if (user.isActive) {
+      user.isActive = false;
+      await this.users.save(user);
+    }
+  }
 }

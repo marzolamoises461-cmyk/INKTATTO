@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsNotEmpty, IsString, MaxLength, IsStrongPassword } from 'class-validator';
 
 export class ChangePasswordDto {
   @IsString()
@@ -6,7 +6,7 @@ export class ChangePasswordDto {
   currentPassword!: string;
 
   @IsString()
-  @MinLength(8, { message: 'La contraseña debe tener al menos 8 caracteres' })
+  @IsStrongPassword({ minLength: 12, minLowercase: 1, minUppercase: 1, minNumbers: 1, minSymbols: 1 }, { message: 'La contraseña debe tener al menos 12 caracteres e incluir mayúscula, minúscula, número y símbolo' })
   @MaxLength(72)
   newPassword!: string;
 }

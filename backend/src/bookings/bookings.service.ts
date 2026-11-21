@@ -14,6 +14,7 @@ import {
   ReferenceImageStorageService, ReferenceImageUpload,
 } from './reference-image-storage.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { AdminListQueryDto, paginated, PaginatedResult } from '../common/dto/admin-list-query.dto';
 
 export interface ReferenceImageMetadata {
   id: number;
@@ -216,8 +217,32 @@ export class BookingsService {
     return bookings.map((booking) => this.clientView(booking));
   }
 
-  async findAll(): Promise<Booking[]> {
-    return this.bookings.find({ relations: { user: true }, order: { createdAt: 'DESC' } });
+  async findAll(query: AdminListQueryDto): Promise<PaginatedResult<Booking>> {
+    const sortBy = query.sortBy ?? 'createdAt';
+    const allowedSorts: Record<string, string> = {
+      createdAt: 'booking.createdAt',
+      date: 'booking.date',
+      status: 'booking.status',
+      artist: 'booking.artist',
+    };
+    const sortColumn = allowedSorts[sortBy];
+    if (!sortColumn) throw new BadRequestException('El campo de ordenamiento no está permitido.');
+    const builder = this.bookings.createQueryBuilder('booking')
+      .leftJoinAndSelect('booking.user', 'user');
+    const search = query.search?.trim();
+    if (search) {
+      builder.andWhere(
+        '(user.fullName LIKE :search OR user.email LIKE :search OR booking.artist LIKE :search OR booking.bodyArea LIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+    if (query.status) builder.andWhere('booking.status = :status', { status: query.status });
+    const [data, total] = await builder
+      .orderBy(sortColumn, query.sortOrder)
+      .skip((query.page - 1) * query.pageSize)
+      .take(query.pageSize)
+      .getManyAndCount();
+    return paginated(data, total, query);
   }
 
   async cancelMine(id: number, user: User, reason: string): Promise<BookingClientView> {

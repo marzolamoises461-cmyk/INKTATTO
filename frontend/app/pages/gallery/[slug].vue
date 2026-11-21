@@ -66,7 +66,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import StudioLayout from '../../components/StudioLayout.vue'
 import { designs } from '../../data/studio'
-import { readFavorites, toggleFavorite } from '../../utils/studio-storage'
+import { useFavorites } from '../../composables/useFavorites'
 
 const route = useRoute()
 const slug = computed(() => String(route.params.slug ?? ''))
@@ -75,21 +75,21 @@ const relatedDesigns = computed(() => {
   const related = designs.filter((item) => item.slug !== slug.value && item.category === design.value?.category)
   return (related.length ? related : designs.filter((item) => item.slug !== slug.value)).slice(0, 3)
 })
-const favorites = ref<string[]>([])
+const { favorites, load, toggle: toggleFavorite } = useFavorites()
 const storageMessage = ref('')
 const isFavorite = computed(() => favorites.value.includes(slug.value))
 
-onMounted(() => {
+onMounted(async () => {
   try {
-    favorites.value = readFavorites()
+    await load()
   } catch (error) {
     storageMessage.value = error instanceof Error ? error.message : 'No se pudieron cargar los favoritos.'
   }
 })
 
-function toggle() {
+async function toggle() {
   try {
-    favorites.value = toggleFavorite(slug.value)
+    await toggleFavorite(slug.value)
     storageMessage.value = ''
   } catch (error) {
     storageMessage.value = error instanceof Error ? error.message : 'No se pudo actualizar el favorito.'

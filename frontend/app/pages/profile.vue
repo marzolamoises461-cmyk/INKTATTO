@@ -33,11 +33,12 @@
           </label>
           <label class="studio-field">
             Nueva contraseña
-            <input v-model="newPassword" type="password" autocomplete="new-password" required minlength="8" maxlength="72" />
+            <input v-model="newPassword" type="password" autocomplete="new-password" required minlength="12" maxlength="72" />
+            <small>Mínimo 12 caracteres, con mayúscula, minúscula, número y símbolo.</small>
           </label>
           <label class="studio-field">
             Confirmar contraseña nueva
-            <input v-model="passwordConfirmation" type="password" autocomplete="new-password" required minlength="8" maxlength="72" />
+            <input v-model="passwordConfirmation" type="password" autocomplete="new-password" required minlength="12" maxlength="72" />
           </label>
           <p v-if="passwordMessage" class="studio-notice" role="status">{{ passwordMessage }}</p>
           <button class="studio-button" type="submit" :disabled="passwordLoading">
@@ -60,6 +61,9 @@
               <h3>{{ booking.bodyArea }} · {{ booking.time.slice(0, 5) }}</h3>
               <span>{{ formatBookingDate(booking.date) }} · {{ booking.artist }}</span>
               <span v-if="booking.quotedPrice">Cotización: {{ formatCurrency(booking.quotedPrice) }} · Anticipo: {{ formatCurrency(booking.depositAmount || '0') }}</span>
+              <span v-if="paymentStatuses[booking.id] && paymentStatuses[booking.id] !== 'not_started'">
+                Estado del pago: {{ paymentStatusLabel(paymentStatuses[booking.id]) }}
+              </span>
               <span v-if="booking.cancellationReason || booking.rejectionReason" class="client-booking__reason">
                 {{ booking.cancellationReason || booking.rejectionReason }}
               </span>
@@ -83,6 +87,13 @@
               />
             </label>
             <button v-if="booking.status === 'pending'" class="client-cancel" type="button" @click="cancelBooking(booking.id)">Cancelar solicitud</button>
+            <button
+              v-if="booking.status === 'quoted' && booking.depositAmount && paymentStatuses[booking.id] !== 'approved'"
+              class="client-cancel"
+              type="button"
+              :disabled="paymentLoadingId === booking.id"
+              @click="startDepositPayment(booking.id)"
+            >{{ paymentLoadingId === booking.id ? 'Conectando con Wompi…' : 'Pagar anticipo con Wompi' }}</button>
           </article>
         </div>
         <p v-else class="studio-empty">Todavía no tienes solicitudes. Cuando envíes una desde Reservas, aparecerá aquí desde cualquier dispositivo.</p>
@@ -109,7 +120,8 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import StudioLayout from '../components/StudioLayout.vue'
 import { designs } from '../data/studio'
-import { readFavorites, formatBookingDate } from '../utils/studio-storage'
+import { formatBookingDate } from '../utils/studio-storage'
+import { useFavorites } from '../composables/useFavorites'
 
 interface BookingRecord {
   id: number
@@ -134,9 +146,11 @@ interface BookingImage {
 }
 
 const { user, api, initialize, logout } = useAuth()
+const { favorites, load: loadFavorites } = useFavorites()
 const bookings = ref<BookingRecord[]>([])
+const paymentStatuses = ref<Record<number, string>>({})
+const paymentLoadingId = ref(0)
 const bookingImages = ref<Record<number, BookingImage[]>>({})
-const favorites = ref<string[]>([])
 const loading = ref(true)
 const pageMessage = ref('')
 const currentPassword = ref('')
@@ -153,15 +167,13 @@ onMounted(async () => {
     return
   }
   try {
-    const [items] = await Promise.all([
-      api<BookingRecord[]>('/bookings/mine'),
-      Promise.resolve().then(() => { favorites.value = readFavorites() }),
-    ])
+    const [items] = await Promise.all([api<BookingRecord[]>('/bookings/mine'), loadFavorites()])
     bookings.value = items
-    await Promise.all(items.map((booking) => loadBookingImages(booking.id)))
+    await Promise.all(items.map(async (booking) => {
+      await Promise.all([loadBookingImages(booking.id), loadPaymentStatus(booking.id)])
+    }))
   } catch {
     pageMessage.value = 'No se pudieron cargar tus solicitudes. Comprueba que la API y MySQL estén disponibles.'
-    try { favorites.value = readFavorites() } catch { favorites.value = [] }
   } finally {
     loading.value = false
   }
@@ -170,6 +182,36 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   Object.values(bookingImages.value).flat().forEach((image) => URL.revokeObjectURL(image.previewUrl))
 })
+
+async function loadPaymentStatus(bookingId: number): Promise<void> {
+  const result = await api<{ status: string }>(`/payments/bookings/${bookingId}`)
+  paymentStatuses.value[bookingId] = result.status
+}
+
+async function startDepositPayment(bookingId: number): Promise<void> {
+  paymentLoadingId.value = bookingId
+  pageMessage.value = ''
+  try {
+    const checkout = await api<{ checkoutUrl: string }>(`/payments/bookings/${bookingId}/checkout`, { method: 'POST' })
+    window.location.assign(checkout.checkoutUrl)
+  } catch (error: unknown) {
+    pageMessage.value = errorMessage(error, 'No se pudo iniciar el checkout de Wompi.')
+  } finally {
+    paymentLoadingId.value = 0
+  }
+}
+
+function paymentStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    not_started: 'Sin iniciar',
+    pending: 'Pendiente de confirmación de Wompi',
+    approved: 'Confirmado por Wompi',
+    declined: 'Rechazado por Wompi',
+    voided: 'Anulado por Wompi',
+    error: 'Error reportado por Wompi',
+  }
+  return labels[status] ?? 'Estado desconocido'
+}
 
 function monthName(value: string): string {
   return new Intl.DateTimeFormat('es-CO', { month: 'short' }).format(new Date(value + 'T12:00:00'))

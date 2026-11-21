@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { ExampleModule } from './example/example.module';
@@ -9,6 +11,9 @@ import { ArtistsModule } from './artists/artists.module';
 import { HealthController } from './health/health.controller';
 import { validateEnvironment } from './config/env.validation';
 import { NotificationsModule } from './notifications/notifications.module';
+import { ContactModule } from './contact/contact.module';
+import { FavoritesModule } from './favorites/favorites.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   controllers: [HealthController],
@@ -39,10 +44,15 @@ import { NotificationsModule } from './notifications/notifications.module';
     }),
     UserModule,
     AuthModule,
-    ExampleModule,
+    ...(process.env.NODE_ENV === 'production' ? [] : [ExampleModule]),
     BookingsModule,
     ArtistsModule,
     NotificationsModule,
+    ContactModule,
+    FavoritesModule,
+    PaymentsModule,
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 300 }]),
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}
